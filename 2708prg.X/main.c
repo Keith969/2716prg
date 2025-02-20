@@ -302,7 +302,7 @@ uint8_t read_port()
     __delay_us(1);
     
     // Set CE_ true, WE_ false
-    PORTCbits.RC0 = 1;
+    PORTCbits.RC0 = 0;
     PORTCbits.RC1 = 1;
     __delay_us(1);
 
