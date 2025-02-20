@@ -43,6 +43,7 @@ static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
 static int16_t bytes_pushed = 0;   // pushed into queue
 static int16_t bytes_popped = 0;   // popped from queue
+static bool    queue_empty = false;// wait if queue empty
 
 // ****************************************************************************
 // setCTS()
@@ -100,7 +101,7 @@ bool empty()
     return false;
 }
 // ****************************************************************************
-// push a char onto queue.
+// push a char onto queue. Called by interrupt.
 // to enqueue (push), we move tail one position clockwise.
 // e.g. head=0, tail = ENDQUEUE. after push, 
 //   queue[0]=c
@@ -141,24 +142,22 @@ void push(char c)
 //
 char pop()
 {
+    // Check for empty *before* disabling interrupts,
+    // as queue only filled via an interrupt.
+    while (empty()) {
+        // Wait for queue to fill
+        __delay_ms(1); 
+    }
+        
     // pop() is called in write() and could be interrupted, which would
-    // cause havoc to the queue. So disable interrupts.)
+    // cause havoc to the queue. So disable interrupts.
     INTCONbits.GIE = 0;
     PIE1bits.RCIE=0;
-    
-    char c = 0;
-    
-    if (empty()) {
-        // error - queue is empty.  Set error led.
-        PORTEbits.RE2 = 1;
-        __delay_ms(2000);
-        return c;
-    }
-    else {
-        c = queue[head];
-        head = addone(head);
-        bytes_popped++;
-    }
+
+    // Get the head of the queue
+    char c = queue[head];
+    head = addone(head);
+    bytes_popped++;
     
     // Enable interrupts
     INTCONbits.GIE = 1;
