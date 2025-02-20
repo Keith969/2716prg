@@ -4,4 +4,7 @@ GeneratedFiles/
 Makefile
 release/
 2708prg.X/build/*
+2708prg.X/build/default/*
 2708prg.X/dist/*
+2708prg.X/dist/default/production/*
+2708prg.X/nbproject/*
