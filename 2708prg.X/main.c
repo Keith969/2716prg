@@ -286,8 +286,8 @@ void setup_address(uint16_t addr)
         LATB       = addr & 0x00ff;
         LATA       = hi   & 0x03;
         
-        // wait
-        __delay_us(2);
+        // wait, Tcss
+        __delay_us(10);
 }
 
 // ****************************************************************************
@@ -301,9 +301,9 @@ uint8_t read_port()
     // wait
     __delay_us(1);
     
-    // Set enable true, WE_ false
-    PORTCbits.RC0 = 1; // set CE_ true
-    PORTCbits.RC1 = 1; // set WE_ false (read)
+    // Set CE_ true, WE_ false
+    PORTCbits.RC0 = 1;
+    PORTCbits.RC1 = 1;
     __delay_us(1);
 
     // Read port D
@@ -430,25 +430,16 @@ void do_read()
 void write_port(uint8_t data)
 {
     // Write the byte to port D
-     __delay_us(10);
+     __delay_us(1);
     LATD = data;
 
-    // Set CE1 hi 
+    // Activate PGM pulse for 1mS
     __delay_us(10);
-    PORTBbits.RB4 = 1;
-
-    // Activate PGM pulse for 50mS
-    __delay_us(1);
-    PORTBbits.RB3 = 1;
-
-    __delay_ms(50);
+    PORTCbits.RC2 = 0; 
+    __delay_ms(1);
 
     // Deactivate PGM pulse
-    PORTBbits.RB3 = 0;
-    __delay_us(1);
-
-    // Set CE1 lo
-    PORTBbits.RB4 = 0;
+    PORTCbits.RC2 = 1;
     __delay_us(1);
 }
 
@@ -469,30 +460,36 @@ void do_write()
     PORTCbits.RC0 = 0; // set CE_ true
     PORTCbits.RC1 = 0; // set WE_ true (write)
     PORTCbits.RC2 = 1; // set PRG_ false
-        
-    for (addr = 0; addr < 1024; addr++) {
-        if (cmd_active == false) {
-            char *s = "Write aborted\n";
-            uart_puts(s);
-            return;
-        }
+      
+    // Programm 100 times the full address space as per Intel docs
+    for (int j=0; j < 100; ++j) {
+        for (addr = 0; addr < 1024; addr++) {
+            if (cmd_active == false) {
+                char *s = "Write aborted\n";
+                uart_puts(s);
+                return;
+            }
 
-        // Get two ascii chars from queue and convert to 8 bit data.
-        c = pop();
-        uint8_t hi = charToHexDigit(c);
-        c = pop();
-        uint8_t lo = charToHexDigit(c);
-        uint8_t data = hi*16+lo;
-        
-        // Latch the 16 bit address.
-        setup_address(addr);
-        
-        // Write the byte to port D
-        write_port(data);
+            // Get two ascii chars from queue and convert to 8 bit data.
+            c = pop();
+            uint8_t hi = charToHexDigit(c);
+            c = pop();
+            uint8_t lo = charToHexDigit(c);
+            uint8_t data = hi*16+lo;
+
+            // Latch the 16 bit address.
+            setup_address(addr);
+
+            // Write the byte to port D
+            write_port(data);
+        }
     }
     
     PORTCbits.RC0 = 1; // set CE_ false
     PORTCbits.RC1 = 1; // set WE_ false (read)
+    
+    // Set port D to input
+    TRISD = INPUT;
     
     sprintf(ads, "Write completed.\n");
     uart_puts(ads);
