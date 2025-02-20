@@ -120,8 +120,12 @@ void push(char c)
         
     if ( addone(addone(tail)) == head) {
         // error - queue is full. Set error led.
-        PORTEbits.RE2 = 1;
-        __delay_ms(2000);
+        for (int i=0; i < 100; ++i) {
+            __delay_ms(10);
+            PORTEbits.RE2 = 1;
+            __delay_ms(10);
+            PORTEbits.RE2 = 0;
+        }
         return;
     }
     else {
@@ -150,8 +154,14 @@ char pop()
     
     if (empty()) {
         // error - queue is empty.  Set error led.
-        PORTEbits.RE2 = 1;
-        __delay_ms(2000);
+        for (int i=0; i < 100; ++i) {
+            __delay_ms(10);
+            PORTEbits.RE2 = 1;
+            PORTEbits.RE1 = 1;
+            __delay_ms(10);
+            PORTEbits.RE2 = 0;
+            PORTEbits.RE1 = 0;
+        }
         return c;
     }
     else {
@@ -461,28 +471,25 @@ void do_write()
     PORTCbits.RC1 = 0; // set WE_ true (write)
     PORTCbits.RC2 = 1; // set PRG_ false
       
-    // Programm 100 times the full address space as per Intel docs
-    for (int j=0; j < 100; ++j) {
-        for (addr = 0; addr < 1024; addr++) {
-            if (cmd_active == false) {
-                char *s = "Write aborted\n";
-                uart_puts(s);
-                return;
-            }
-
-            // Get two ascii chars from queue and convert to 8 bit data.
-            c = pop();
-            uint8_t hi = charToHexDigit(c);
-            c = pop();
-            uint8_t lo = charToHexDigit(c);
-            uint8_t data = hi*16+lo;
-
-            // Latch the 16 bit address.
-            setup_address(addr);
-
-            // Write the byte to port D
-            write_port(data);
+    for (addr = 0; addr < 1024; addr++) {
+        if (cmd_active == false) {
+            char *s = "Write aborted\n";
+            uart_puts(s);
+            return;
         }
+
+        // Get two ascii chars from queue and convert to 8 bit data.
+        c = pop();
+        uint8_t hi = charToHexDigit(c);
+        c = pop();
+        uint8_t lo = charToHexDigit(c);
+        uint8_t data = hi*16+lo;
+
+        // Latch the 16 bit address.
+        setup_address(addr);
+
+        // Write the byte to port D
+        write_port(data);
     }
     
     PORTCbits.RC0 = 1; // set CE_ false

@@ -10,6 +10,8 @@
 #include <QtWidgets/QMessageBox>
 #include <QtSerialPort/QSerialPortInfo>
 
+#include "unistd.h"
+
 // *****************************************************************************
 // Function     [ constructor ]
 // Description  [ ]
@@ -226,9 +228,10 @@ guiMainWindow::init()
                                  .arg(portName));
 
     setLedColour(Qt::red);
+    QString devType = ui.deviceType->currentText();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_INIT, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_INIT, devType, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Initialising...");
     clearText();
@@ -256,9 +259,10 @@ guiMainWindow::read()
                                  .arg(portName));
 
     setLedColour(Qt::red);
+    QString devType = ui.deviceType->currentText();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Reading...");
     clearText();
@@ -285,9 +289,10 @@ guiMainWindow::check()
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
     setLedColour(Qt::red);
+    QString devType = ui.deviceType->currentText();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_CHEK, devType, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Checking...");
 }
@@ -313,12 +318,21 @@ guiMainWindow::write()
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                      .arg(portName));
 
-        // Send the cmd, followed by the data.
-        QString request(CMD_WRTE);
+        setLedColour(Qt::red);
+        clearText();
+        appendText("Writing data to DUT...");
 
         // Send the data as bytes, using pairs of chars.
         std::vector<hexDataChunk> hData = m_HexFile->hexData();
 
+        QString devType = ui.deviceType->currentText();
+
+        // Send the write cmd, followed by the data.
+        QString request(CMD_WRTE);
+
+        statusBar()->showMessage("Status: Running, write.");
+
+        // Set up the data then start the thread
         for (auto iter = hData.begin(); iter != hData.end(); ++iter) {
             hexDataChunk chunk = *iter;
             std::vector<uint8_t> data = chunk.data();
@@ -329,14 +343,7 @@ guiMainWindow::write()
                 request.append(c);
             }
         }
-
-        setLedColour(Qt::red);
-
-        m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
-
-        statusBar()->showMessage("Writing...");
-        clearText();
-        appendText("Writing data to DUT...");
+        m_senderThread.transaction(portName, request, devType, timeout, baudRate, flowControl, true);
     }
     else {
         clearText();
@@ -366,9 +373,10 @@ guiMainWindow::verify()
                                      .arg(portName));
 
         setLedColour(Qt::red);
+        QString devType = ui.deviceType->currentText();
 
         // Send the cmd.
-        m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
+        m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
 
         statusBar()->showMessage("Verifying...");
         clearText();
