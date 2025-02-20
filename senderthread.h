@@ -28,7 +28,6 @@ public:
 
     void                      transaction(const QString &portName,
                                             const QString &request,
-                                            const QString &devType,
                                             int waitTimeout=10000,
                                             int baudRate=115200,
                                             int flowControl=0,
@@ -46,7 +45,6 @@ private:
 
     QString                   m_portName;
     QString                   m_request;
-    QString                   m_devType;
     int                       m_waitTimeout = 0;
     QMutex                    m_mutex;
     QWaitCondition            m_cond;

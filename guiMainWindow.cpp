@@ -10,8 +10,6 @@
 #include <QtWidgets/QMessageBox>
 #include <QtSerialPort/QSerialPortInfo>
 
-#include "unistd.h"
-
 // *****************************************************************************
 // Function     [ constructor ]
 // Description  [ ]
@@ -154,8 +152,6 @@ guiMainWindow::saveHexFile()
     // foreach line
     for (auto line_iter = lines.begin(); line_iter != lines.end(); ++line_iter) {
         QString line = *line_iter;
-        // if done
-        if (line.startsWith("DUT") || line.isEmpty()) break;
         std::vector<uint8_t> data;
         uint32_t checksum=0;
 
@@ -228,10 +224,9 @@ guiMainWindow::init()
                                  .arg(portName));
 
     setLedColour(Qt::red);
-    QString devType = ui.deviceType->currentText();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_INIT, devType, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_INIT, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Initialising...");
     clearText();
@@ -259,10 +254,9 @@ guiMainWindow::read()
                                  .arg(portName));
 
     setLedColour(Qt::red);
-    QString devType = ui.deviceType->currentText();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Reading...");
     clearText();
@@ -289,10 +283,9 @@ guiMainWindow::check()
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
     setLedColour(Qt::red);
-    QString devType = ui.deviceType->currentText();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_CHEK, devType, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Checking...");
 }
@@ -318,32 +311,64 @@ guiMainWindow::write()
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                      .arg(portName));
 
-        setLedColour(Qt::red);
-        clearText();
-        appendText("Writing data to DUT...");
-
-        // Send the data as bytes, using pairs of chars.
-        std::vector<hexDataChunk> hData = m_HexFile->hexData();
-
         QString devType = ui.deviceType->currentText();
 
-        // Send the write cmd, followed by the data.
-        QString request(CMD_WRTE);
+        if (devType == "8755") {
+            // Send the cmd, followed by the data.
+            QString request(CMD_WRTE);
 
-        statusBar()->showMessage("Status: Running, write.");
+            // Send the data as bytes, using pairs of chars.
+            std::vector<hexDataChunk> hData = m_HexFile->hexData();
 
-        // Set up the data then start the thread
-        for (auto iter = hData.begin(); iter != hData.end(); ++iter) {
-            hexDataChunk chunk = *iter;
-            std::vector<uint8_t> data = chunk.data();
-            uint8_t count = chunk.byteCount();
-            for (int8_t i=0; i < count; ++i) {
-                const short d = data.at(i);
-                QString c=QString("%1").arg(d, 2, 16, QChar('0'));
-                request.append(c);
+            for (auto iter = hData.begin(); iter != hData.end(); ++iter) {
+                hexDataChunk chunk = *iter;
+                std::vector<uint8_t> data = chunk.data();
+                uint8_t count = chunk.byteCount();
+                for (int8_t i=0; i < count; ++i) {
+                    const short d = data.at(i);
+                    QString c=QString("%1").arg(d, 2, 16, QChar('0'));
+                    request.append(c);
+                }
+            }
+
+            setLedColour(Qt::red);
+
+            m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
+
+            statusBar()->showMessage("Writing...");
+            clearText();
+            appendText("Writing data to DUT...");
+        }
+        else if (devType == "2708") {
+
+            // Repeat write 100 times...
+            for (int32_t j=0; j < 100; ++j) {
+                // Send the cmd, followed by the data.
+                QString request(CMD_WRTE);
+
+                // Send the data as bytes, using pairs of chars.
+                std::vector<hexDataChunk> hData = m_HexFile->hexData();
+
+                for (auto iter = hData.begin(); iter != hData.end(); ++iter) {
+                    hexDataChunk chunk = *iter;
+                    std::vector<uint8_t> data = chunk.data();
+                    uint8_t count = chunk.byteCount();
+                    for (int8_t i=0; i < count; ++i) {
+                        const short d = data.at(i);
+                        QString c=QString("%1").arg(d, 2, 16, QChar('0'));
+                        request.append(c);
+                    }
+                }
+
+                setLedColour(Qt::red);
+
+                m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
+
+                statusBar()->showMessage(QString("Writing pass %1...").arg(j));
+                clearText();
+                appendText("Writing data to DUT...");
             }
         }
-        m_senderThread.transaction(portName, request, devType, timeout, baudRate, flowControl, true);
     }
     else {
         clearText();
@@ -373,10 +398,9 @@ guiMainWindow::verify()
                                      .arg(portName));
 
         setLedColour(Qt::red);
-        QString devType = ui.deviceType->currentText();
 
         // Send the cmd.
-        m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
+        m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
         statusBar()->showMessage("Verifying...");
         clearText();
@@ -418,47 +442,31 @@ guiMainWindow::senderShowResponse(const QString &s)
         // Compare each char of s to the hexfile
         std::vector<hexDataChunk> hexdata = m_HexFile->hexData();
         int32_t j=0;
-        int32_t bad=0;
         bool ok = true;
         for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
             hexDataChunk chunk = *iter;
             // Write the address of the chunk
-            QString ss; ss.setNum(chunk.address(), 16);
-            ui.textEdit->insertPlainText(QString("%1: ").arg(ss,4,QChar('0')));
+            appendText(QString("$1: ").arg(chunk.address()));
             j += 6; // skip addr e.g. '0000: '
             std::vector<uint8_t> data = chunk.data();
             for (int32_t i=0; i < data.size(); ++i) {
                 // chunk's hex characters given by data.at(i)
                 uint8_t hex_chr = data.at(i);
-                // dev's data is 2 chars
+                // dev's data
                 QString ss = s.mid(j, 2);
                 // Convert to hex char
                 uint8_t dev_chr = ss.toInt(&ok, 16);
                 // Compare the data. If equal, write the data,
                 // if not equal, write the data in red.
                 if (hex_chr == dev_chr) {
-                    ui.textEdit->insertPlainText(QString("%1 ").arg(ss,2,QChar('0')));
+                    appendText(QString("$1 ").arg(ss));
                 }
                 else {
                     ui.textEdit->setTextColor(Qt::red);
-                    ui.textEdit->insertPlainText(QString("%1 ").arg(ss,2,QChar('0')));
+                    appendText(QString("$1 ").arg(ss));
                     ui.textEdit->setTextColor(Qt::black);
-                    bad++;
-                }
-                // increment j pointer
-                if (i == 15) {
-                    j += 2;
-                } else {
-                    j += 3;
                 }
             }
-            ui.textEdit->insertPlainText("\n");
-        }
-        if (bad != 0) {
-            appendText(QString("DUT has %1 differences with hex file!").arg(bad));
-        }
-        else {
-            appendText("DUT verified correct.");
         }
     }
     else if (m_mode == op_init) {

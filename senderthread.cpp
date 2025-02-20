@@ -41,7 +41,6 @@ SenderThread::~SenderThread()
 void
 SenderThread::transaction(const QString &portName,
                                const QString &request,
-                               const QString &devType,
                                int waitTimeout,
                                int baudRate,
                                int flowControl,
@@ -56,7 +55,6 @@ SenderThread::transaction(const QString &portName,
     m_bytesSent = 0;
     m_bytesReceived = 0;
     m_program = program;
-    m_devType = devType;
 
     if (!isRunning())
         start();
@@ -109,71 +107,36 @@ SenderThread::run()
         const QByteArray requestData = currentRequest.toUtf8();
 
         if (m_program) {
-            if (m_devType == "2708") {
 
-                // The write cmd needs to be sent in byte pairs
-                int32_t size = requestData.size();
+            // The write cmd needs to be sent in byte pairs
+            int32_t size = requestData.size();
+            for (int32_t i=0; i < size; i+=2) {
+                // write 2 chars at a time...
+                QByteArray s = requestData.sliced(i,2);
+                s.toUpper();
+                serial.write(s);
 
-                // For the 2708 we need 100 loops of writing...
-                for (int32_t j=0; j < 100; ++j) {
+                // We wait for a little less than the program pulse time, so that
+                // the PIC receive buffer never dries out.
+                msleep(45);
 
-                    for (int32_t i=0; i < size; i+=2) {
-                        // write 2 chars at a time...
-                        QByteArray s = requestData.sliced(i,2);
-                        s.toUpper();
-                        serial.write(s);
-
-                        // wait until we have sent it
-                        while (!serial.waitForBytesWritten(currentWaitTimeout)) {
-                            msleep(2);
-                        }
-                    }
-                    // check for response
-                    if (serial.waitForReadyRead(currentWaitTimeout)) {
-                        QByteArray responseData = serial.readAll();
-
-                        while (serial.waitForReadyRead(100)) {
-                            responseData += serial.readAll();
-                        }
-                        const QString response = QString::fromUtf8(responseData);
-                        emit this->response(response);
-                    } else {
-                        emit timeout(tr("Wait read response timeout %1")
-                                         .arg(QTime::currentTime().toString()));
-                    }
+                // until we have sent it
+                while (!serial.waitForBytesWritten(currentWaitTimeout)) {
+                    msleep(1);
                 }
             }
-            else if (m_devType == "8755") {
-                // The write cmd needs to be sent in byte pairs
-                int32_t size = requestData.size();
-                for (int32_t i=0; i < size; i+=2) {
-                    // write 2 chars at a time...
-                    QByteArray s = requestData.sliced(i,2);
-                    s.toUpper();
-                    serial.write(s);
+            // check for response
+            if (serial.waitForReadyRead(currentWaitTimeout)) {
+                QByteArray responseData = serial.readAll();
 
-                    // We wait for a little less than the program pulse time, so that
-                    // the PIC receive buffer never dries out.
-                    msleep(45);
-
-                    // until we have sent it
-                    while (!serial.waitForBytesWritten(currentWaitTimeout)) {
-                        msleep(1);
-                    }
+                while (serial.waitForReadyRead(100)) {
+                    responseData += serial.readAll();
                 }
-                // check for response
-                if (serial.waitForReadyRead(currentWaitTimeout)) {
-                    QByteArray responseData = serial.readAll();
-
-                    while (serial.waitForReadyRead(100)) {
-                        responseData += serial.readAll();
-                    }
-                    const QString response = QString::fromUtf8(responseData);
-                    emit this->response(response);
-                } else {
-                    emit timeout(tr("Wait read response timeout %1")
-                                     .arg(QTime::currentTime().toString()));
-                }
+                const QString response = QString::fromUtf8(responseData);
+                emit this->response(response);
+            } else {
+                emit timeout(tr("Wait read response timeout %1")
+                                 .arg(QTime::currentTime().toString()));
             }
         }
         else {
