@@ -461,28 +461,25 @@ void do_write()
     PORTCbits.RC1 = 0; // set WE_ true (write)
     PORTCbits.RC2 = 1; // set PRG_ false
       
-    // Programm 100 times the full address space as per Intel docs
-    for (int j=0; j < 100; ++j) {
-        for (addr = 0; addr < 1024; addr++) {
-            if (cmd_active == false) {
-                char *s = "Write aborted\n";
-                uart_puts(s);
-                return;
-            }
-
-            // Get two ascii chars from queue and convert to 8 bit data.
-            c = pop();
-            uint8_t hi = charToHexDigit(c);
-            c = pop();
-            uint8_t lo = charToHexDigit(c);
-            uint8_t data = hi*16+lo;
-
-            // Latch the 16 bit address.
-            setup_address(addr);
-
-            // Write the byte to port D
-            write_port(data);
+    for (addr = 0; addr < 1024; addr++) {
+        if (cmd_active == false) {
+            char *s = "Write aborted\n";
+            uart_puts(s);
+            return;
         }
+
+        // Get two ascii chars from queue and convert to 8 bit data.
+        c = pop();
+        uint8_t hi = charToHexDigit(c);
+        c = pop();
+        uint8_t lo = charToHexDigit(c);
+        uint8_t data = hi*16+lo;
+
+        // Latch the 16 bit address.
+        setup_address(addr);
+
+        // Write the byte to port D
+        write_port(data);
     }
     
     PORTCbits.RC0 = 1; // set CE_ false
@@ -513,7 +510,6 @@ void main(void) {
     INTCONbits.GIE = 1;
         
     // Loop while waiting for commands
-    // We flash a green LED so we know we are listening...
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
@@ -537,15 +533,16 @@ void main(void) {
 
             // Clear the cmd
             clear();
-        } 
+        } else {
+            // Green LED on to show we're ready
+            // Orange/Red off
+            PORTEbits.RE0 = 1;
+            PORTEbits.RE1 = 0;
+            PORTEbits.RE2 = 0;
+        }
         
-        // Flash green light only
-        PORTEbits.RE0 = 1;
-        __delay_ms(250);      
-        PORTEbits.RE0 = 0;
-        PORTEbits.RE1 = 0;
-        PORTEbits.RE2 = 0;
-        __delay_ms(250);
+        // Delay for the loop
+        __delay_ms(1);      
     } 
 }
 
