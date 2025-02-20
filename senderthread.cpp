@@ -129,7 +129,7 @@ SenderThread::run()
 
                         // until we have sent it
                         while (!serial.waitForBytesWritten(currentWaitTimeout)) {
-                            msleep(1);
+                            msleep(2);
                         }
                     }
                     // check for response
@@ -145,6 +145,8 @@ SenderThread::run()
                         emit timeout(tr("Wait read response timeout %1")
                                          .arg(QTime::currentTime().toString()));
                     }
+                    // wait a little
+                    msleep(10);
                 }
             }
             else if (m_devType == "8755") {

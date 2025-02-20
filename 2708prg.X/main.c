@@ -550,8 +550,6 @@ void main(void) {
         PORTEbits.RE0 = 1;
         __delay_ms(250);      
         PORTEbits.RE0 = 0;
-        PORTEbits.RE1 = 0;
-        PORTEbits.RE2 = 0;
         __delay_ms(250);
     } 
 }
