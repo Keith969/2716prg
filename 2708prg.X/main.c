@@ -30,9 +30,9 @@
 
 // Received chars are put into a queue.
 // See e.g. Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
-#define QUEUESIZE 1024             // Queue size
+#define QUEUESIZE 1536             // Queue size
 #define ENDQUEUE  QUEUESIZE-1      // End of queue
-#define HIWATER   QUEUESIZE-16     // The highwater mark, stop sending.
+#define HIWATER   QUEUESIZE-32     // The highwater mark, stop sending.
 
 //
 // static variables
@@ -146,7 +146,10 @@ char pop()
     // as queue only filled via an interrupt.
     while (empty()) {
         // Wait for queue to fill
-        __delay_ms(1); 
+        PORTEbits.RE1 = 1;
+        __delay_ms(10); 
+        PORTEbits.RE1 = 1;
+        __delay_ms(10);
     }
         
     // pop() is called in write() and could be interrupted, which would
@@ -528,6 +531,9 @@ void main(void) {
             }
             else if (cmd == CMD_CHEK) {
                 do_blank();
+            }
+            else if (cmd == CMD_INIT) {
+                uart_puts("Already init");
             }
             
             // Clear the cmd

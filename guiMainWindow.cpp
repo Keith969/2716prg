@@ -10,6 +10,8 @@
 #include <QtWidgets/QMessageBox>
 #include <QtSerialPort/QSerialPortInfo>
 
+#include "unistd.h"
+
 // *****************************************************************************
 // Function     [ constructor ]
 // Description  [ ]
@@ -214,6 +216,10 @@ guiMainWindow::getFlowControl()
 void
 guiMainWindow::init()
 {
+    if (m_initOK) {
+        QMessageBox::critical(this, "Initialisation", "Init aready done!", QMessageBox::Ok);
+        return;
+    }
     QString portName = ui.serialPort->currentText();
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
@@ -366,7 +372,8 @@ guiMainWindow::write()
 
                 statusBar()->showMessage(QString("Writing pass %1...").arg(j));
                 clearText();
-                appendText("Writing data to DUT...");
+                appendText(QString("Writing pass %1 to DUT").arg(j));
+                qApp->processEvents();
             }
         }
     }
@@ -433,7 +440,13 @@ guiMainWindow::senderShowResponse(const QString &s)
     if (m_mode == op_read || m_mode == op_write || m_mode == op_check) {
         clearText();
         appendText(s);
-        statusBar()->showMessage("Ready");
+        if (m_mode == op_read)
+            statusBar()->showMessage("Read done");
+        else if (m_mode == op_write)
+            statusBar()->showMessage("Write done");
+        else if (m_mode == op_check)
+            statusBar()->showMessage("Check done");
+
         setLedColour(Qt::green);
     }
     // If a verify, compare with m_HexFile
