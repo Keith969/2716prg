@@ -372,8 +372,14 @@ guiMainWindow::write()
 
                 statusBar()->showMessage(QString("Writing pass %1...").arg(j));
                 clearText();
+                printf("Write pass %d\n", j);
                 appendText(QString("Writing pass %1 to DUT").arg(j));
                 qApp->processEvents();
+
+                while (m_senderThread.isRunning()) {
+                    qApp->processEvents();
+                }
+                printf("Write pass %d done\n", j);
             }
         }
     }
@@ -436,6 +442,7 @@ guiMainWindow::quit()
 void
 guiMainWindow::senderShowResponse(const QString &s)
 {
+    printf("senderShowResponse called with args : %s", (const char *) s.toLatin1());
     // If we are doing a read, clear the textEdit then display the response.
     if (m_mode == op_read || m_mode == op_write || m_mode == op_check) {
         clearText();
