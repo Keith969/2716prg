@@ -30,7 +30,7 @@
 
 // Received chars are put into a queue.
 // See e.g. Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
-#define QUEUESIZE 1536             // Queue size
+#define QUEUESIZE 1024             // Queue size
 #define ENDQUEUE  QUEUESIZE-1      // End of queue
 #define HIWATER   QUEUESIZE-32     // The highwater mark, stop sending.
 
