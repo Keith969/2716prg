@@ -33,6 +33,7 @@
 #define QUEUESIZE 1024             // Queue size
 #define ENDQUEUE  QUEUESIZE-1      // End of queue
 #define HIWATER   QUEUESIZE-32     // The highwater mark, stop sending.
+#define LOWATER   32               // The lowwater mark, resume sending.
 
 //
 // static variables
@@ -84,7 +85,7 @@ int16_t size()
     if (s > HIWATER) {
         setCTS(true);
     }
-    else {
+    if (s < LOWATER) {
         setCTS(false);
     }
     return s;
