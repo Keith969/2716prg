@@ -542,7 +542,7 @@ guiMainWindow::write()
                         const QString response = QString::fromUtf8(responseData);
                         if (response == "OK") {
                             statusBar()->showMessage("Write OK");
-                            appendText(QString("Wrote %1 bytes").arg(requestData.size()));
+                            appendText(QString("Wrote %1 bytes").arg((requestData.size()-1)/2));
                         }
                         else {
                             serialError(QString("Failed to write %1 bytes)").arg(requestData.size()));
