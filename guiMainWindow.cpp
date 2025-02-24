@@ -240,6 +240,7 @@ guiMainWindow::init()
                                  .arg(portName));
 
     setLedColour(Qt::red);
+    qApp->processEvents();
 
     // Send the cmd, ascii U or 0x55.
     m_serialPort->write(CMD_INIT);
@@ -308,6 +309,7 @@ guiMainWindow::read()
                                  .arg(m_serialPort->portName()));
     clearText();
     setLedColour(Qt::red);
+    qApp->processEvents();
 
     // Send the cmd.
     m_serialPort->write(CMD_READ);
@@ -363,14 +365,7 @@ guiMainWindow::check()
                                  .arg(m_serialPort->portName()));
     clearText();
     setLedColour(Qt::red);
-
-    int32_t size;
-    if (devType == "2708") {
-        size = 1024;
-    }
-    else if (devType == "8755") {
-        size = 2048;
-    }
+    qApp->processEvents();
 
     // Send the cmd.
     m_serialPort->write(CMD_READ);
@@ -448,6 +443,7 @@ guiMainWindow::write()
                                      .arg(m_serialPort->portName()));
 
         setLedColour(Qt::red);
+        qApp->processEvents();
 
         if (devType == "8755") {
             // Send the cmd, followed by the data.
@@ -557,6 +553,7 @@ guiMainWindow::write()
                 } else {
                     serialTimeout(QString("Write cmd timeout %1").arg(QTime::currentTime().toString()));
                 }
+                //////// KAS
                 return;
             }
         }
@@ -584,6 +581,7 @@ guiMainWindow::verify()
                                  .arg(m_serialPort->portName()));
 
     setLedColour(Qt::red);
+    qApp->processEvents();
 
     // Send the cmd.
     m_serialPort->write(CMD_READ);

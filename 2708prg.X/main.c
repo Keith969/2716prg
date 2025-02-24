@@ -147,10 +147,7 @@ char pop()
     // as queue only filled via an interrupt.
     while (empty()) {
         // Wait for queue to fill
-        PORTEbits.RE1 = 1;
-        __delay_ms(10); 
-        PORTEbits.RE1 = 1;
-        __delay_ms(10);
+        return 0xff;
     }
         
     // pop() is called in write() and could be interrupted, which would
