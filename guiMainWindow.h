@@ -8,9 +8,9 @@
 // *****************************************************************************
 
 #include <QtWidgets/QMainWindow>
+#include <QSerialPort>
 #include "ui_guiMainWindow.h"
 #include "hexFile.h"
-#include "senderthread.h"
 #include "qLedWidget.h"
 
 #define CMD_DONE "$0"
@@ -50,9 +50,8 @@ public slots:
     void                   write();
     void                   verify();
 
-    void                   senderShowResponse(const QString &);
-    void                   senderProcessError(const QString &);
-    void                   senderProcessTimeout(const QString &);
+    void                   serialError(const QString &);
+    void                   serialTimeout(const QString &);
 
     void                   appendText(const QString& s) { ui.textEdit->append(s); }
     void                   clearText() { ui.textEdit->clear(); }
@@ -71,15 +70,13 @@ private:
     hexFile              * m_HexFile;
 
     // Sender thread
-    SenderThread           m_senderThread;
+    QSerialPort            m_serialPort;
 
     // Status bar
     QStatusBar             m_statusBar;
     QLabel                 m_statusMsg;
     QLedWidget           * m_ledWidget;
 
-    // Operation mode
-    mode                   m_mode;
     bool                   m_initOK;
 };
 

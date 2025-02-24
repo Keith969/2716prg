@@ -40,11 +40,6 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     QObject::connect(ui.loadHexFile,         SIGNAL(clicked()),                  this, SLOT(openHexFile()));
     QObject::connect(ui.saveHexFile,         SIGNAL(clicked()),                  this, SLOT(saveHexFile()));
 
-    // Sender read thread
-    QObject::connect(&m_senderThread,        SIGNAL(response(const QString &)),  this, SLOT(senderShowResponse(const QString &)));
-    QObject::connect(&m_senderThread,        SIGNAL(error(const QString &)),     this, SLOT(senderProcessError(const QString &)));
-    QObject::connect(&m_senderThread,        SIGNAL(timeout(const QString &)),   this, SLOT(senderProcessTimeout(const QString &)));
-
     // Stuff the serial port combo box
     const auto infos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : infos) {
@@ -78,7 +73,6 @@ guiMainWindow::guiMainWindow(QWidget *parent)
 
     m_HexFile = new hexFile;
     m_HexFile->setMainWindow(this);
-    m_mode = op_none;
     m_initOK = false;
 
     // Until we have init the baud rate, disable the buttons
@@ -221,23 +215,75 @@ guiMainWindow::init()
         return;
     }
     QString portName = ui.serialPort->currentText();
-    int timeout = ui.timeOut->value() * 1000;
-    int baudRate = ui.baudRate->currentText().toInt();
-    int flowControl = getFlowControl();
+    int32_t timeout = ui.timeOut->value() * 1000;
+    int32_t baudRate = ui.baudRate->currentText().toInt();
+    int32_t flowControl = getFlowControl();
     QString devType = ui.deviceType->currentText();
-    m_mode = op_init;
+
+    // Set the serial port
+    m_serialPort.close();
+    m_serialPort.setPortName(portName);
+    m_serialPort.setBaudRate(baudRate);
+    m_serialPort.setFlowControl((QSerialPort::FlowControl) flowControl);
+
+    // Now open the port
+    if (!m_serialPort.open(QIODevice::ReadWrite)) {
+        appendText( QString("Can't open %1, error code %2").arg(portName).arg(m_serialPort.error()) );
+        return;
+    }
 
     statusBar()->showMessage(QString("Status: Initialising, connected to port %1.")
                                  .arg(portName));
 
     setLedColour(Qt::red);
 
-    // Send the cmd.
-    m_senderThread.transaction(portName, CMD_INIT, devType, timeout, baudRate, flowControl);
+    // Send the cmd, ascii U or 0x55.
+    m_serialPort.write(CMD_INIT);
 
-    statusBar()->showMessage("Initialising...");
-    clearText();
-    appendText("Initialising programmer...");
+    // Did we get a response?
+    if (m_serialPort.waitForBytesWritten(timeout)) {
+
+        // read response from the PIC
+        if (m_serialPort.waitForReadyRead(timeout)) {
+
+            QByteArray responseData = m_serialPort.readAll();
+
+            while (m_serialPort.waitForReadyRead(timeout)) {
+                responseData += m_serialPort.readAll();
+            }
+            const QString response = QString::fromUtf8(responseData);
+
+            // The response string should be the baud rate info
+            clearText();
+            bool ok=true;
+            int32_t val=20.0e6 / (4 * (response.toInt(&ok) + 1));
+            QString ss = QString("Initialised to %1 baud.").arg(val);
+            appendText(ss);
+            statusBar()->showMessage("Ready");
+            setLedColour(Qt::green);
+            m_initOK = true;
+
+            // Enable the buttons
+            ui.checkButton->setEnabled(true);
+            ui.readButton->setEnabled(true);
+            ui.writeButton->setEnabled(true);
+            ui.verifyButton->setEnabled(true);
+
+            if (ok == true) {
+                statusBar()->showMessage("Initialise OK");
+                appendText(QString("Initialise serial link to %1 baud").arg(baudRate));
+            }
+            else {
+                serialError(QString("Failed to initialise serial link to % baud").arg(baudRate));
+            }
+        } else {
+            serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+        }
+    } else {
+        serialTimeout(QString("Wait write request timeout %1").arg(QTime::currentTime().toString()));
+    }
+
+    setLedColour(Qt::green);
 }
 
 // *****************************************************************************
@@ -252,23 +298,58 @@ guiMainWindow::read()
         return;
     }
     QString portName = ui.serialPort->currentText();
-    int timeout = ui.timeOut->value() * 1000;
-    int baudRate = ui.baudRate->currentText().toInt();
-    int flowControl = getFlowControl();
+    int32_t timeout = ui.timeOut->value() * 1000;
+    int32_t baudRate = ui.baudRate->currentText().toInt();
+    int32_t flowControl = getFlowControl();
     QString devType = ui.deviceType->currentText();
-    m_mode = op_read;
 
-    statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+    // Set the serial port
+    m_serialPort.close();
+    m_serialPort.setPortName(portName);
+    m_serialPort.setBaudRate(baudRate);
+    m_serialPort.setFlowControl((QSerialPort::FlowControl) flowControl);
+
+    // Now open the port
+    if (!m_serialPort.open(QIODevice::ReadWrite)) {
+        appendText( QString("Can't open %1, error code %2").arg(portName).arg(m_serialPort.error()) );
+        return;
+    }
+
+    statusBar()->showMessage(QString("Status: Reading, connected to port %1.")
                                  .arg(portName));
 
     setLedColour(Qt::red);
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
+    m_serialPort.write(CMD_READ);
 
-    statusBar()->showMessage("Reading...");
-    clearText();
-    appendText("Reading data from DUT...");
+    // Did we get a response?
+    if (m_serialPort.waitForBytesWritten(timeout)) {
+
+        // read response from the PIC
+        if (m_serialPort.waitForReadyRead(timeout)) {
+
+            QByteArray responseData = m_serialPort.readAll();
+
+            while (m_serialPort.waitForReadyRead(timeout)) {
+                responseData += m_serialPort.readAll();
+            }
+            const QString response = QString::fromUtf8(responseData);
+            if (response.size() > 2) {
+                statusBar()->showMessage("Read OK");
+                appendText(QString("Read %1 bytes").arg(response.size()));
+            }
+            else {
+                serialError(QString("Failed to read reponse (%1 bytes read)").arg(response.size()));
+            }
+        } else {
+            serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+        }
+    } else {
+        serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
+    }
+
+    setLedColour(Qt::green);
 }
 
 // *****************************************************************************
@@ -283,20 +364,58 @@ guiMainWindow::check()
         return;
     }
     QString portName = ui.serialPort->currentText();
-    int timeout = ui.timeOut->value() * 1000;
-    int baudRate = ui.baudRate->currentText().toInt();
-    int flowControl = getFlowControl();
+    int32_t timeout = ui.timeOut->value() * 1000;
+    int32_t baudRate = ui.baudRate->currentText().toInt();
+    int32_t flowControl = getFlowControl();
     QString devType = ui.deviceType->currentText();
-    m_mode = op_check;
 
-    statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+    // Set the serial port
+    m_serialPort.close();
+    m_serialPort.setPortName(portName);
+    m_serialPort.setBaudRate(baudRate);
+    m_serialPort.setFlowControl((QSerialPort::FlowControl) flowControl);
+
+    // Now open the port
+    if (!m_serialPort.open(QIODevice::ReadWrite)) {
+        appendText( QString("Can't open %1, error code %2").arg(portName).arg(m_serialPort.error()) );
+        return;
+    }
+
+    statusBar()->showMessage(QString("Status: Checking, connected to port %1.")
                                  .arg(portName));
+
     setLedColour(Qt::red);
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_CHEK, devType, timeout, baudRate, flowControl);
+    m_serialPort.write(CMD_READ);
 
-    statusBar()->showMessage("Checking...");
+    // Did we get a response?
+    if (m_serialPort.waitForBytesWritten(timeout)) {
+
+        // read response from the PIC
+        if (m_serialPort.waitForReadyRead(timeout)) {
+
+            QByteArray responseData = m_serialPort.readAll();
+
+            while (m_serialPort.waitForReadyRead(timeout)) {
+                responseData += m_serialPort.readAll();
+            }
+            const QString response = QString::fromUtf8(responseData);
+            if (response.size() > 2) {
+                statusBar()->showMessage("Check OK");
+                appendText(QString("Read %1 bytes").arg(response.size()));
+            }
+            else {
+                serialError(QString("Failed to read reponse (%1 bytes read)").arg(response.size()));
+            }
+        } else {
+            serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+        }
+    } else {
+        serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
+    }
+
+    setLedColour(Qt::green);
 }
 
 // *****************************************************************************
@@ -316,7 +435,6 @@ guiMainWindow::write()
         int baudRate = ui.baudRate->currentText().toInt();
         int flowControl = getFlowControl();
         QString devType = ui.deviceType->currentText();
-        m_mode = op_write;
 
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                      .arg(portName));
@@ -341,11 +459,41 @@ guiMainWindow::write()
 
             setLedColour(Qt::red);
 
-            m_senderThread.transaction(portName, request, devType, timeout, baudRate, flowControl, true);
+            // Send the cmd + data
+            const QByteArray requestData = request.toUtf8();
+            m_serialPort.write(requestData);
 
             statusBar()->showMessage("Writing...");
             clearText();
             appendText("Writing data to DUT...");
+            qApp->processEvents();
+
+            // Did we get a response?
+            if (m_serialPort.waitForBytesWritten(timeout)) {
+
+                // read response from the PIC
+                if (m_serialPort.waitForReadyRead(timeout)) {
+
+                    QByteArray responseData = m_serialPort.readAll();
+
+                    while (m_serialPort.waitForReadyRead(timeout)) {
+                        responseData += m_serialPort.readAll();
+                    }
+                    const QString response = QString::fromUtf8(responseData);
+                    if (response == "OK") {
+                        statusBar()->showMessage("Write OK");
+                        appendText(QString("Wrote %1 bytes").arg(requestData.size()));
+                    }
+                    else {
+                        serialError(QString("Failed to write %1 bytes)").arg(requestData.size()));
+                    }
+                } else {
+                    serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+                }
+            } else {
+                serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
+            }
+
         }
         else if (devType == "2708") {
 
@@ -370,18 +518,40 @@ guiMainWindow::write()
 
                 setLedColour(Qt::red);
 
-                m_senderThread.transaction(portName, request, devType, timeout, baudRate, flowControl, true);
+                // Send the cmd + data
+                const QByteArray requestData = request.toUtf8();
+                m_serialPort.write(requestData);
 
                 statusBar()->showMessage(QString("Writing pass %1...").arg(j));
                 clearText();
-                printf("Write pass %d\n", j);
                 appendText(QString("Writing pass %1 to DUT").arg(j));
                 qApp->processEvents();
 
-                while (m_senderThread.isRunning()) {
-                    qApp->processEvents();
+                // Did we get a response?
+                if (m_serialPort.waitForBytesWritten(timeout)) {
+
+                    // read response from the PIC
+                    if (m_serialPort.waitForReadyRead(timeout)) {
+
+                        QByteArray responseData = m_serialPort.readAll();
+
+                        while (m_serialPort.waitForReadyRead(timeout)) {
+                            responseData += m_serialPort.readAll();
+                        }
+                        const QString response = QString::fromUtf8(responseData);
+                        if (response == "OK") {
+                            statusBar()->showMessage("Write OK");
+                            appendText(QString("Wrote %1 bytes").arg(requestData.size()));
+                        }
+                        else {
+                            serialError(QString("Failed to write %1 bytes)").arg(requestData.size()));
+                        }
+                    } else {
+                        serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+                    }
+                } else {
+                    serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
                 }
-                printf("Write pass %d done\n", j);
             }
         }
     }
@@ -402,30 +572,97 @@ guiMainWindow::verify()
         QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
         return;
     }
-    if (size() > 0) {
-        QString portName = ui.serialPort->currentText();
-        int timeout = ui.timeOut->value() * 1000;
-        int baudRate = ui.baudRate->currentText().toInt();
-        int flowControl = getFlowControl();
-        QString devType = ui.deviceType->currentText();
-        m_mode = op_verify;
+    QString portName = ui.serialPort->currentText();
+    int32_t timeout = ui.timeOut->value() * 1000;
+    int32_t baudRate = ui.baudRate->currentText().toInt();
+    int32_t flowControl = getFlowControl();
+    QString devType = ui.deviceType->currentText();
 
-        statusBar()->showMessage(QString("Status: Running, connected to port %1.")
-                                     .arg(portName));
+    // Set the serial port
+    m_serialPort.close();
+    m_serialPort.setPortName(portName);
+    m_serialPort.setBaudRate(baudRate);
+    m_serialPort.setFlowControl((QSerialPort::FlowControl) flowControl);
 
-        setLedColour(Qt::red);
-
-        // Send the cmd.
-        m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
-
-        statusBar()->showMessage("Verifying...");
-        clearText();
-        appendText("Verifying DUT data...");
+    // Now open the port
+    if (!m_serialPort.open(QIODevice::ReadWrite)) {
+        appendText( QString("Can't open %1, error code %2").arg(portName).arg(m_serialPort.error()) );
+        return;
     }
-    else {
-        clearText();
-        appendText("No HEX data - please open a HEX file!\n");
+
+    statusBar()->showMessage(QString("Status: Verifying, connected to port %1.")
+                                 .arg(portName));
+
+    setLedColour(Qt::red);
+
+    // Send the cmd.
+    m_serialPort.write(CMD_READ);
+
+    // Did we get a response?
+    if (m_serialPort.waitForBytesWritten(timeout)) {
+
+        // read response from the PIC
+        if (m_serialPort.waitForReadyRead(timeout)) {
+
+            QByteArray responseData = m_serialPort.readAll();
+
+            while (m_serialPort.waitForReadyRead(timeout)) {
+                responseData += m_serialPort.readAll();
+            }
+            const QString response = QString::fromUtf8(responseData);
+            if (response.size() > 2) {
+
+                clearText();
+                // Compare each char of s to the hexfile
+                std::vector<hexDataChunk> hexdata = m_HexFile->hexData();
+                int32_t j=0;
+                bool ok = true;
+                for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
+                    hexDataChunk chunk = *iter;
+                    // Write the address of the chunk
+                    appendText(QString("$1: ").arg(chunk.address()));
+                    j += 6; // skip addr e.g. '0000: '
+                    std::vector<uint8_t> data = chunk.data();
+                    for (int32_t i=0; i < data.size(); ++i) {
+                        // chunk's hex characters given by data.at(i)
+                        uint8_t hex_chr = data.at(i);
+                        // dev's data
+                        QString ss = response.mid(j, 2);
+                        // Convert to hex char
+                        uint8_t dev_chr = ss.toInt(&ok, 16);
+                        // Compare the data. If equal, write the data,
+                        // if not equal, write the data in red.
+                        if (hex_chr == dev_chr) {
+                            appendText(QString("$1 ").arg(ss));
+                        }
+                        else {
+                            ui.textEdit->setTextColor(Qt::red);
+                            appendText(QString("$1 ").arg(ss));
+                            ui.textEdit->setTextColor(Qt::black);
+                            ok = false;
+                        }
+                    }
+                }
+
+                if (ok) {
+                    statusBar()->showMessage("Verify OK");
+                }
+                else {
+                    statusBar()->showMessage("Verify failed");
+                }
+                appendText(QString("Read %1 bytes").arg(response.size()));
+            }
+            else {
+                serialError(QString("Failed to initialise serial link to % baud").arg(baudRate));
+            }
+        } else {
+            serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+        }
+    } else {
+        serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
     }
+
+    setLedColour(Qt::green);
 }
 
 // *****************************************************************************
@@ -439,84 +676,11 @@ guiMainWindow::quit()
 }
 
 // *****************************************************************************
-// Function     [ senderShowResponse ]
-// Description  [ Show the thread response string in the text area. ]
-// *****************************************************************************
-void
-guiMainWindow::senderShowResponse(const QString &s)
-{
-    printf("senderShowResponse called with args : %s", (const char *) s.toLatin1());
-    // If we are doing a read, clear the textEdit then display the response.
-    if (m_mode == op_read || m_mode == op_write || m_mode == op_check) {
-        clearText();
-        appendText(s);
-        if (m_mode == op_read)
-            statusBar()->showMessage("Read done");
-        else if (m_mode == op_write)
-            statusBar()->showMessage("Write done");
-        else if (m_mode == op_check)
-            statusBar()->showMessage("Check done");
-
-        setLedColour(Qt::green);
-    }
-    // If a verify, compare with m_HexFile
-    else if (m_mode == op_verify) {
-        clearText();
-        // Compare each char of s to the hexfile
-        std::vector<hexDataChunk> hexdata = m_HexFile->hexData();
-        int32_t j=0;
-        bool ok = true;
-        for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
-            hexDataChunk chunk = *iter;
-            // Write the address of the chunk
-            appendText(QString("$1: ").arg(chunk.address()));
-            j += 6; // skip addr e.g. '0000: '
-            std::vector<uint8_t> data = chunk.data();
-            for (int32_t i=0; i < data.size(); ++i) {
-                // chunk's hex characters given by data.at(i)
-                uint8_t hex_chr = data.at(i);
-                // dev's data
-                QString ss = s.mid(j, 2);
-                // Convert to hex char
-                uint8_t dev_chr = ss.toInt(&ok, 16);
-                // Compare the data. If equal, write the data,
-                // if not equal, write the data in red.
-                if (hex_chr == dev_chr) {
-                    appendText(QString("$1 ").arg(ss));
-                }
-                else {
-                    ui.textEdit->setTextColor(Qt::red);
-                    appendText(QString("$1 ").arg(ss));
-                    ui.textEdit->setTextColor(Qt::black);
-                }
-            }
-        }
-    }
-    else if (m_mode == op_init) {
-        // The response string should be the baud rate info
-        clearText();
-        bool ok=true;
-        int32_t val=20.0e6 / (4 * (s.toInt(&ok) + 1));
-        QString ss = QString("Initialised to %1 baud.").arg(val);
-        appendText(ss);
-        statusBar()->showMessage("Ready");
-        setLedColour(Qt::green);
-        m_initOK = true;
-
-        // Enable the buttons
-        ui.checkButton->setEnabled(true);
-        ui.readButton->setEnabled(true);
-        ui.writeButton->setEnabled(true);
-        ui.verifyButton->setEnabled(true);
-    }
-}
-
-// *****************************************************************************
-// Function     [ senderProcessError ]
+// Function     [ serialError ]
 // Description  [ ]
 // *****************************************************************************
 void
-guiMainWindow::senderProcessError(const QString &s)
+guiMainWindow::serialError(const QString &s)
 {
     QString message = QString("Error %1").arg(s);
     QMessageBox::warning(nullptr, "Sender error", message);
@@ -525,11 +689,11 @@ guiMainWindow::senderProcessError(const QString &s)
 }
 
 // *****************************************************************************
-// Function     [ senderProcessTimeout ]
+// Function     [ serialTimeout ]
 // Description  [ ]
 // *****************************************************************************
 void
-guiMainWindow::senderProcessTimeout(const QString &s)
+guiMainWindow::serialTimeout(const QString &s)
 {
     QString message = QString("Timeout %1").arg(s);
     QMessageBox::warning(nullptr, "Sender timeout", message);
