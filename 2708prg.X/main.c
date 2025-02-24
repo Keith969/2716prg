@@ -147,22 +147,18 @@ char pop()
     // as queue only filled via an interrupt.
     while (empty()) {
         // Wait for queue to fill
-        return 0xff;
+        PORTEbits.RE2 = 1;
+        __delay_ms(100);
+        PORTEbits.RE2 = 0;
+        __delay_ms(100);
     }
-        
-    // pop() is called in write() and could be interrupted, which would
-    // cause havoc to the queue. So disable interrupts.
-    INTCONbits.GIE = 0;
-    PIE1bits.RCIE=0;
 
-    // Get the head of the queue
+    // Get the head of the queue.
+    // Should this be protected from interrupts?
     char c = queue[head];
     head = addone(head);
     bytes_popped++;
     
-    // Enable interrupts
-    INTCONbits.GIE = 1;
-    PIE1bits.RCIE = 1;
     return c;
 }
 
