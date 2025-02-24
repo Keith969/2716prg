@@ -273,17 +273,13 @@ void __interrupt() isr(void)
 //
 void setup_address(uint16_t addr)
 {                
-        PORTCbits.RC0 = 1; // set CE_ false
-        PORTCbits.RC1 = 1; // set WE_ false (read)
-        PORTCbits.RC2 = 1; // set PRG_ false
-     
-        // Set the address lines. B0-7 is A0-7, A0-1 is A8-9
-        uint8_t hi = addr >> 8;
-        LATB       = addr & 0x00ff;
-        LATA       = hi   & 0x03;
+    // Set the address lines. B0-7 is A0-7, A0-1 is A8-9
+    uint8_t hi = addr >> 8;
+    LATB       = addr & 0x00ff;
+    LATA       = hi   & 0x03;
         
-        // wait, Tcss
-        __delay_us(10);
+    // wait, Tcss
+    __delay_us(10);
 }
 
 // ****************************************************************************
@@ -425,11 +421,6 @@ void do_read()
 //
 void write_port(uint8_t data)
 {   
-    // Set control bits for reading
-    PORTCbits.RC0 = 0; // set CE_ true
-    PORTCbits.RC1 = 0; // set WE_ true (write)
-    PORTCbits.RC2 = 1; // set PRG_ false
-    
     // Write the byte to port D
      __delay_us(1);
     LATD = data;
@@ -451,12 +442,17 @@ void write_port(uint8_t data)
 void do_write()
 {
     uint16_t addr;
-    char ads[48];   
+    char ads[2];   
     char c;
     
     // Set port D to output
     TRISD = OUTPUT;
       
+    // Set control bits for writing
+    PORTCbits.RC0 = 0; // set CE_ true
+    PORTCbits.RC1 = 0; // set WE_ true (write)
+    PORTCbits.RC2 = 1; // set PRG_ false
+    
     for (addr = 0; addr < 1024; addr++) {
         if (cmd_active == false) {
             char *s = "Write aborted\n";
@@ -471,23 +467,16 @@ void do_write()
         uint8_t lo = charToHexDigit(c);
         uint8_t data = hi*16+lo;
 
-        // Disable interrupts
-        INTCONbits.GIE = 0;
-        PIE1bits.RCIE=0;
-    
         // Latch the 16 bit address.
         setup_address(addr);
 
         // Write the byte to port D
         write_port(data);
-        
-        // Enable interrupts
-        INTCONbits.GIE = 0;
-        PIE1bits.RCIE=0;
     }
     
     PORTCbits.RC0 = 1; // set CE_ false
     PORTCbits.RC1 = 1; // set WE_ false (read)
+    PORTCbits.RC2 = 1; // set PRG_ false
     
     // Set port D to input
     TRISD = INPUT;
