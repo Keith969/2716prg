@@ -154,7 +154,6 @@ char pop()
     }
 
     // Get the head of the queue.
-    // Should this be protected from interrupts?
     char c = queue[head];
     head = addone(head);
     bytes_popped++;
@@ -417,7 +416,7 @@ void do_read()
 }
 
 // ****************************************************************************
-// Write a byte
+// Write a byte. Assume address setup and D is output.
 //
 void write_port(uint8_t data)
 {   
