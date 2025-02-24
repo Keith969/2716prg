@@ -373,7 +373,7 @@ void do_blank()
     PORTCbits.RC0 = 1;
     
     if (ok) {
-        s = "Erase check passed.\n";
+        s = "OK";
         uart_puts(s);
     }  
 }
@@ -491,7 +491,7 @@ void do_write()
     // Set port D to input
     TRISD = INPUT;
     
-    sprintf(ads, "Write completed.\n");
+    sprintf(ads, "OK");
     uart_puts(ads);
 }
 
