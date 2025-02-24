@@ -224,6 +224,7 @@ guiMainWindow::init()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
+    QString devType = ui.deviceType->currentText();
     m_mode = op_init;
 
     statusBar()->showMessage(QString("Status: Initialising, connected to port %1.")
@@ -232,7 +233,7 @@ guiMainWindow::init()
     setLedColour(Qt::red);
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_INIT, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_INIT, devType, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Initialising...");
     clearText();
@@ -254,6 +255,7 @@ guiMainWindow::read()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
+    QString devType = ui.deviceType->currentText();
     m_mode = op_read;
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
@@ -262,7 +264,7 @@ guiMainWindow::read()
     setLedColour(Qt::red);
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Reading...");
     clearText();
@@ -284,6 +286,7 @@ guiMainWindow::check()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
+    QString devType = ui.deviceType->currentText();
     m_mode = op_check;
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
@@ -291,7 +294,7 @@ guiMainWindow::check()
     setLedColour(Qt::red);
 
     // Send the cmd.
-    m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
+    m_senderThread.transaction(portName, CMD_CHEK, devType, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Checking...");
 }
@@ -312,12 +315,11 @@ guiMainWindow::write()
         int timeout = ui.timeOut->value() * 1000;
         int baudRate = ui.baudRate->currentText().toInt();
         int flowControl = getFlowControl();
+        QString devType = ui.deviceType->currentText();
         m_mode = op_write;
 
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                      .arg(portName));
-
-        QString devType = ui.deviceType->currentText();
 
         if (devType == "8755") {
             // Send the cmd, followed by the data.
@@ -339,7 +341,7 @@ guiMainWindow::write()
 
             setLedColour(Qt::red);
 
-            m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
+            m_senderThread.transaction(portName, request, devType, timeout, baudRate, flowControl, true);
 
             statusBar()->showMessage("Writing...");
             clearText();
@@ -368,7 +370,7 @@ guiMainWindow::write()
 
                 setLedColour(Qt::red);
 
-                m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
+                m_senderThread.transaction(portName, request, devType, timeout, baudRate, flowControl, true);
 
                 statusBar()->showMessage(QString("Writing pass %1...").arg(j));
                 clearText();
@@ -405,6 +407,7 @@ guiMainWindow::verify()
         int timeout = ui.timeOut->value() * 1000;
         int baudRate = ui.baudRate->currentText().toInt();
         int flowControl = getFlowControl();
+        QString devType = ui.deviceType->currentText();
         m_mode = op_verify;
 
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
@@ -413,7 +416,7 @@ guiMainWindow::verify()
         setLedColour(Qt::red);
 
         // Send the cmd.
-        m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
+        m_senderThread.transaction(portName, CMD_READ, devType, timeout, baudRate, flowControl);
 
         statusBar()->showMessage("Verifying...");
         clearText();

@@ -41,6 +41,7 @@ SenderThread::~SenderThread()
 void
 SenderThread::transaction(const QString &portName,
                                const QString &request,
+                               const QString &devType,
                                int waitTimeout,
                                int baudRate,
                                int flowControl,
@@ -55,6 +56,7 @@ SenderThread::transaction(const QString &portName,
     m_bytesSent = 0;
     m_bytesReceived = 0;
     m_program = program;
+    m_devType = devType;
 
     if (!isRunning())
         start();
@@ -118,7 +120,10 @@ SenderThread::run()
 
                 // We wait for a little less than the program pulse time, so that
                 // the PIC receive buffer never dries out.
-                usleep(900);
+                if (m_devType == "2708")
+                    usleep(900);
+                else if (m_devType == "8755")
+                    msleep(48);
 
                 // until we have sent it
                 while (!serial.waitForBytesWritten(currentWaitTimeout)) {
