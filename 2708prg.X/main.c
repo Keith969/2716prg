@@ -431,7 +431,12 @@ void do_read()
 // Write a byte
 //
 void write_port(uint8_t data)
-{
+{   
+    // Set control bits for reading
+    PORTCbits.RC0 = 0; // set CE_ true
+    PORTCbits.RC1 = 0; // set WE_ true (write)
+    PORTCbits.RC2 = 1; // set PRG_ false
+    
     // Write the byte to port D
      __delay_us(1);
     LATD = data;
@@ -458,11 +463,6 @@ void do_write()
     
     // Set port D to output
     TRISD = OUTPUT;
-        
-    // Set control bits for reading
-    PORTCbits.RC0 = 0; // set CE_ true
-    PORTCbits.RC1 = 0; // set WE_ true (write)
-    PORTCbits.RC2 = 1; // set PRG_ false
       
     for (addr = 0; addr < 1024; addr++) {
         if (cmd_active == false) {
@@ -478,11 +478,19 @@ void do_write()
         uint8_t lo = charToHexDigit(c);
         uint8_t data = hi*16+lo;
 
+        // Disable interrupts
+        INTCONbits.GIE = 0;
+        PIE1bits.RCIE=0;
+    
         // Latch the 16 bit address.
         setup_address(addr);
 
         // Write the byte to port D
         write_port(data);
+        
+        // Enable interrupts
+        INTCONbits.GIE = 0;
+        PIE1bits.RCIE=0;
     }
     
     PORTCbits.RC0 = 1; // set CE_ false

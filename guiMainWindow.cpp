@@ -557,6 +557,7 @@ guiMainWindow::write()
                 } else {
                     serialTimeout(QString("Write cmd timeout %1").arg(QTime::currentTime().toString()));
                 }
+                return;
             }
         }
     }
