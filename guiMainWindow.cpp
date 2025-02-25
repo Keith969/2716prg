@@ -10,7 +10,8 @@
 #include <QtWidgets/QMessageBox>
 #include <QtSerialPort/QSerialPortInfo>
 
-#include "unistd.h"
+#include <chrono>
+#include <thread>
 
 // *****************************************************************************
 // Function     [ constructor ]
@@ -446,8 +447,18 @@ guiMainWindow::write()
         qApp->processEvents();
 
         if (devType == "8755") {
+
+            statusBar()->showMessage("Writing...");
+            clearText();
+            appendText("Writing data to DUT...");
+            qApp->processEvents();
+            int32_t byte_count=0;
+
             // Send the cmd, followed by the data.
             QString request(CMD_WRTE);
+            // Send the cmd + data
+            const QByteArray requestData = request.toUtf8();
+            m_serialPort->write(requestData);
 
             // Send the data as bytes, using pairs of chars.
             std::vector<hexDataChunk> hData = m_HexFile->hexData();
@@ -458,53 +469,54 @@ guiMainWindow::write()
                 uint8_t count = chunk.byteCount();
                 for (int8_t i=0; i < count; ++i) {
                     const short d = data.at(i);
-                    QString c=QString("%1").arg(d, 2, 16, QChar('0'));
-                    request.append(c);
+                    QByteArray c=QString("%1").arg(d, 2, 16, QChar('0')).toUtf8();
+
+                    // Delay sending to the program pulse width, in this case 50mS
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    m_serialPort->write(c);
+                    m_serialPort->flush();
+                    byte_count++;
                 }
             }
 
-            // Send the cmd + data
-            const QByteArray requestData = request.toUtf8();
-            m_serialPort->write(requestData);
 
-            statusBar()->showMessage("Writing...");
-            clearText();
-            appendText("Writing data to DUT...");
-            qApp->processEvents();
+            // Read response from the PIC
+            if (m_serialPort->waitForReadyRead(timeout)) {
 
-            // Did we get a response?
-            if (m_serialPort->waitForBytesWritten(timeout)) {
+                QByteArray responseData = m_serialPort->readAll();
 
-                // read response from the PIC
-                if (m_serialPort->waitForReadyRead(timeout)) {
-
-                    QByteArray responseData = m_serialPort->readAll();
-
-                    while (m_serialPort->waitForReadyRead(10)) {
-                        responseData += m_serialPort->readAll();
-                    }
-                    const QString response = QString::fromUtf8(responseData);
-                    if (response == "OK") {
-                        statusBar()->showMessage("Write OK");
-                        appendText(QString("Wrote %1 bytes").arg(requestData.size()));
-                    }
-                    else {
-                        serialError(QString("Failed to write %1 bytes)").arg(requestData.size()));
-                    }
-                } else {
-                    serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+                while (m_serialPort->waitForReadyRead(10)) {
+                    responseData += m_serialPort->readAll();
+                }
+                const QString response = QString::fromUtf8(responseData);
+                if (response == "OK") {
+                    statusBar()->showMessage("Write OK");
+                    appendText(QString("Wrote %1 bytes").arg(requestData.size()));
+                }
+                else {
+                    serialError(QString("Failed to write %1 bytes)").arg(requestData.size()));
                 }
             } else {
-                serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
+                serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
             }
-
+            appendText(QString("Write complete!"));
         }
+
         else if (devType == "2708") {
 
             // Repeat write 100 times...
             for (int32_t j=0; j < 100; ++j) {
+
+                statusBar()->showMessage(QString("Writing pass %1...").arg(j));
+                appendText(QString("Writing pass %1 to DUT").arg(j));
+                qApp->processEvents();
+                int32_t byte_count=0;
+
                 // Send the cmd, followed by the data.
                 QString request(CMD_WRTE);
+                // Send the cmd + data
+                const QByteArray requestData = request.toUtf8();
+                m_serialPort->write(requestData);
 
                 // Send the data as bytes, using pairs of chars.
                 std::vector<hexDataChunk> hData = m_HexFile->hexData();
@@ -515,47 +527,37 @@ guiMainWindow::write()
                     uint8_t count = chunk.byteCount();
                     for (int8_t i=0; i < count; ++i) {
                         const short d = data.at(i);
-                        QString c=QString("%1").arg(d, 2, 16, QChar('0'));
-                        request.append(c);
+                        QByteArray c = QString("%1").arg(d, 2, 16, QChar('0')).toUtf8();
+
+                        // Delay sending to the program pulse width, in this case 1mS
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        m_serialPort->write(c);
+                        m_serialPort->flush();
+                        byte_count++;
                     }
                 }
 
-                statusBar()->showMessage(QString("Writing pass %1...").arg(j));
-                appendText(QString("Writing pass %1 to DUT").arg(j));
-                qApp->processEvents();
+                // Read response from the PIC
+                if (m_serialPort->waitForReadyRead(timeout)) {
 
-                // Send the cmd + data
-                const QByteArray requestData = request.toUtf8();
-                m_serialPort->write(requestData);
+                    QByteArray responseData = m_serialPort->readAll();
 
-                // Did we get a response?
-                if (m_serialPort->waitForBytesWritten(timeout)) {
-
-                    // read response from the PIC
-                    if (m_serialPort->waitForReadyRead(timeout)) {
-
-                        QByteArray responseData = m_serialPort->readAll();
-
-                        while (m_serialPort->waitForReadyRead(10)) {
-                            responseData += m_serialPort->readAll();
-                        }
-                        const QString response = QString::fromUtf8(responseData);
-                        if (response == "OK") {
-                            statusBar()->showMessage("Write OK");
-                            appendText(QString("Wrote %1 bytes").arg((requestData.size()-1)/2));
-                        }
-                        else {
-                            serialError(QString("Failed to write %1 bytes)").arg(requestData.size()));
-                        }
-                    } else {
-                        serialTimeout(QString("Write read response timeout %1").arg(QTime::currentTime().toString()));
+                    while (m_serialPort->waitForReadyRead(10)) {
+                        responseData += m_serialPort->readAll();
+                    }
+                    const QString response = QString::fromUtf8(responseData);
+                    if (response == "OK") {
+                        statusBar()->showMessage("Write OK");
+                        appendText(QString("Wrote %1 bytes").arg(byte_count));
+                    }
+                    else {
+                        serialError(QString("Failed to write %1 bytes)").arg(byte_count));
                     }
                 } else {
-                    serialTimeout(QString("Write cmd timeout %1").arg(QTime::currentTime().toString()));
+                    serialTimeout(QString("Write read response timeout %1").arg(QTime::currentTime().toString()));
                 }
-                //////// KAS
-                return;
             }
+            appendText(QString("Write complete!"));
         }
     }
     else {

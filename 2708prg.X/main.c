@@ -120,11 +120,12 @@ void push(char c)
         setCTS(false);
     }
         
-    if ( addone(addone(tail)) == head) {
-        // error - queue is full. Set error led.
-        PORTEbits.RE2 = 1;
-        __delay_ms(2000);
-        return;
+    if ( addone(addone(tail)) == head ) {
+        // error - queue is full. Flash orange led.
+        PORTEbits.RE1 = 1;
+        __delay_ms(100);
+        PORTEbits.RE1 = 0;
+        __delay_ms(100);
     }
     else {
         tail = addone(tail);
@@ -143,20 +144,28 @@ void push(char c)
 //
 char pop()
 {
-    // Check for empty *before* disabling interrupts,
-    // as queue only filled via an interrupt.
+    // Check for empty. Do this before disabling interrupts
+    // as need to receive chars still.
     while (empty()) {
-        // Wait for queue to fill
+        // Wait for queue to fill, flash read led.
         PORTEbits.RE2 = 1;
         __delay_ms(100);
         PORTEbits.RE2 = 0;
         __delay_ms(100);
     }
-
+  
+    // Disable interrupts
+    INTCONbits.GIE = 0;
+    PIE1bits.RCIE=0;
+    
     // Get the head of the queue.
     char c = queue[head];
     head = addone(head);
     bytes_popped++;
+    
+    // Enable interrupts
+    INTCONbits.GIE = 1;
+    PIE1bits.RCIE=1;
     
     return c;
 }
@@ -535,7 +544,7 @@ void main(void) {
         }
         
         // Delay for the loop
-        __delay_ms(1);      
+        __delay_us(10);      
     } 
 }
 
