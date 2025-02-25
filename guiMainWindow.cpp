@@ -470,7 +470,10 @@ guiMainWindow::write()
                 for (int8_t i=0; i < count; ++i) {
                     const short d = data.at(i);
                     QByteArray c=QString("%1").arg(d, 2, 16, QChar('0')).toUtf8();
-
+                    // If RTS is false, sleep
+                    //while (m_serialPort->isRequestToSend() == false) {
+                    //    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    //}
                     // Delay sending to the program pulse width, in this case 50mS
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     m_serialPort->write(c);
@@ -528,7 +531,10 @@ guiMainWindow::write()
                     for (int8_t i=0; i < count; ++i) {
                         const short d = data.at(i);
                         QByteArray c = QString("%1").arg(d, 2, 16, QChar('0')).toUtf8();
-
+                        // If RTS is false, sleep
+                        //while (m_serialPort->isRequestToSend() == false) {
+                        //    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        //}
                         // Delay sending to the program pulse width, in this case 1mS
                         std::this_thread::sleep_for(std::chrono::milliseconds(1));
                         m_serialPort->write(c);
