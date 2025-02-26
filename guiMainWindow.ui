@@ -183,7 +183,7 @@
            <item>
             <widget class="QLabel" name="label_4">
              <property name="text">
-              <string>Type</string>
+              <string>Device Type</string>
              </property>
             </widget>
            </item>
