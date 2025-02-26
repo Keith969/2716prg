@@ -90,7 +90,6 @@ guiMainWindow::guiMainWindow(QWidget *parent)
 guiMainWindow::~guiMainWindow()
 {
     delete m_HexFile;
-    m_serialPort->close();
 }
 
 // *****************************************************************************
