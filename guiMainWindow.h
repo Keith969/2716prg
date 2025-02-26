@@ -57,7 +57,7 @@ public slots:
     void                   clearText() { ui.textEdit->clear(); }
 
     void                   setLedPower(bool pwr) { m_ledWidget->setPower(pwr); }
-    void                   setLedColour(const QColor& color) { m_ledWidget->setColour(color); }
+    void                   setLedColour(const QColor& color) { m_ledWidget->setColour(color); m_ledWidget->update(); }
 
 private:
     size_t                 size() {return m_HexFile->size();}

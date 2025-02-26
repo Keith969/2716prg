@@ -233,6 +233,7 @@ guiMainWindow::init()
     // Now open the port
     if (!m_serialPort->open(QIODevice::ReadWrite)) {
         appendText( QString("Can't open %1, error code %2").arg(portName).arg(m_serialPort->error()) );
+        statusBar()->showMessage("Ready");
         return;
     }
 
@@ -685,7 +686,7 @@ void
 guiMainWindow::serialError(const QString &s)
 {
     QString message = QString("Error: %1").arg(s);
-    QMessageBox::warning(nullptr, "Sender error", message);
+    QMessageBox::warning(nullptr, "Programmer error", message);
     statusBar()->showMessage("Ready");
     setLedColour(Qt::green);
 }
@@ -698,7 +699,7 @@ void
 guiMainWindow::serialTimeout(const QString &s)
 {
     QString message = QString("Timeout: %1").arg(s);
-    QMessageBox::warning(nullptr, "Sender timeout", message);
+    QMessageBox::warning(nullptr, "Programmer timeout", message);
     statusBar()->showMessage("Ready");
     setLedColour(Qt::green);
 }
