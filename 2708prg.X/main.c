@@ -230,8 +230,8 @@ void ports_init(void)
     TRISCbits.TRISC6 = 1;
     TRISCbits.TRISC7 = 1;
     //
-    PORTCbits.RC0 = 1; // set CE_ false
-    PORTCbits.RC1 = 1; // set WE_ false
+    PORTCbits.RC0 = 1; // set WE_ false
+    PORTCbits.RC1 = 1; // set cE_ false
     PORTCbits.RC2 = 1; // set PRG_ false
   
     // Port D is data D0-A7, either input or output.
@@ -301,9 +301,8 @@ uint8_t read_port()
     // wait
     __delay_us(1);
     
-    // Set CE_ true, WE_ false
-    PORTCbits.RC0 = 0;
-    PORTCbits.RC1 = 1;
+    PORTCbits.RC0 = 1; // Set WE_ false
+    PORTCbits.RC1 = 0; // Set CE_ true
     __delay_us(1);
 
     // Read port D
@@ -338,8 +337,8 @@ void do_blank()
     char *s;
        
     // Set control bits for reading
-    PORTCbits.RC0 = 0; // set CE_ true
-    PORTCbits.RC1 = 1; // set WE_ false (read)
+    PORTCbits.RC0 = 1; // set WE_ false (read)
+    PORTCbits.RC1 = 0; // set CE_ true 
     PORTCbits.RC2 = 1; // set PRG_ false
         
     for (addr = 0; addr < 1048; ++addr) {
@@ -367,7 +366,7 @@ void do_blank()
     }
     
     // Set CE_ false
-    PORTCbits.RC0 = 1;
+    PORTCbits.RC1 = 1;
     
     if (ok) {
         s = "OK";
@@ -386,8 +385,8 @@ void do_read()
     uint8_t col=0;
     
     // Set control bits for reading
-    PORTCbits.RC0 = 0; // set CE_ true
-    PORTCbits.RC1 = 1; // set WE_ false (read)
+    PORTCbits.RC0 = 1; // set WE_ false (read)
+    PORTCbits.RC1 = 0; // set CE_ true
     PORTCbits.RC2 = 1; // set PRG_ false
         
     for (addr = 0; addr < 1024; ++addr) {
@@ -421,7 +420,7 @@ void do_read()
     }
     
     // set CE_ false
-    PORTCbits.RC0 = 1; 
+    PORTCbits.RC1 = 1; 
 }
 
 // ****************************************************************************
@@ -457,8 +456,8 @@ void do_write()
     TRISD = OUTPUT;
       
     // Set control bits for writing
-    PORTCbits.RC0 = 0; // set CE_ true
-    PORTCbits.RC1 = 0; // set WE_ true (write)
+    PORTCbits.RC0 = 0; // set WE_ true
+    PORTCbits.RC1 = 0; // set CE_ true (write)
     PORTCbits.RC2 = 1; // set PRG_ false
     
     for (addr = 0; addr < 1024; addr++) {
