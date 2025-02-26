@@ -122,9 +122,9 @@ void push(char c)
         
     if ( addone(addone(tail)) == head ) {
         // error - queue is full. Flash orange led.
-        PORTEbits.RE1 = 1;
+        PORTCbits.RC4 = 1;
         __delay_ms(100);
-        PORTEbits.RE1 = 0;
+        PORTCbits.RC4 = 0;
         __delay_ms(100);
     }
     else {
@@ -148,9 +148,9 @@ char pop()
     // as need to receive chars still.
     while (empty()) {
         // Wait for queue to fill, flash read led.
-        PORTEbits.RE2 = 1;
+        PORTCbits.RC5 = 1;
         __delay_ms(100);
-        PORTEbits.RE2 = 0;
+        PORTCbits.RC5 = 0;
         __delay_ms(100);
     }
   
@@ -222,28 +222,28 @@ void ports_init(void)
     TRISCbits.TRISC0 = 0; // bit 0 is CE_ chip enable
     TRISCbits.TRISC1 = 0; // bit 1 is WE_ write
     TRISCbits.TRISC2 = 0; // bit 2 is PRG_
-    // bit 3,4,5 unused
-    TRISCbits.TRISC3 = 0;
-    TRISCbits.TRISC4 = 0;
-    TRISCbits.TRISC5 = 0;
+    // bit 3,4,5 LEDs
+    TRISCbits.TRISC3 = 0; // Green LED
+    TRISCbits.TRISC4 = 0; // Orange LED
+    TRISCbits.TRISC5 = 0; // Red LED
     // uart bits
     TRISCbits.TRISC6 = 1;
     TRISCbits.TRISC7 = 1;
     //
     PORTCbits.RC0 = 1; // set WE_ false
-    PORTCbits.RC1 = 1; // set cE_ false
+    PORTCbits.RC1 = 1; // set CE_ false
     PORTCbits.RC2 = 1; // set PRG_ false
+    PORTCbits.RC3 = 0; // green off
+    PORTCbits.RC4 = 0; // orange off
+    PORTCbits.RC5 = 0; // red off
   
     // Port D is data D0-A7, either input or output.
     TRISD = INPUT;
     
-    // Port E for status LEDs
-    TRISEbits.TRISE0 = 0; // green  LED, while loop
-    TRISEbits.TRISE1 = 0; // orange LED, interrupt
-    TRISEbits.TRISE2 = 0; // red    LED, warning
-    PORTEbits.RE0 = 1;    // and turn them off...
-    PORTEbits.RE1 = 0;
-    PORTEbits.RE2 = 0;
+    // Port E spare
+    TRISEbits.TRISE0 = 0;
+    TRISEbits.TRISE1 = 0;
+    TRISEbits.TRISE2 = 0;
 }
 
 // ****************************************************************************
@@ -513,7 +513,7 @@ void main(void) {
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
-            PORTEbits.RE1 = 1;
+            PORTCbits.RC4 = 1;
             
             // pop the $
             pop();
@@ -539,7 +539,7 @@ void main(void) {
         } 
         else {
             // Green LED on to show we're ready
-            PORTEbits.RE0 = 1;
+            PORTCbits.RC3 = 1;
         }
         
         // Delay for the loop

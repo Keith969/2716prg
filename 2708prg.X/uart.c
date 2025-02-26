@@ -105,9 +105,9 @@ uint16_t uart_init_brg()
         }
         
         // Flash orange LED while waiting...
-        PORTEbits.RE1 = 1;
+        PORTCbits.RC4 = 1;
         __delay_ms(250);
-        PORTEbits.RE1 = 0;
+        PORTCbits.RC4 = 0;
         __delay_ms(250);
         
         if ( BAUDCONbits.ABDOVF ) {
@@ -119,7 +119,7 @@ uint16_t uart_init_brg()
     rate = (SPBRGH << 8) | SPBRG;
     
     // Orange LED off
-    PORTEbits.RE1 = 0;
+    PORTCbits.RC4 = 0;
     
     // enable interrupts
     PIE1bits.RCIE=1;
