@@ -513,6 +513,7 @@ void main(void) {
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
+            PORTCbits.RC3 = 0;
             PORTCbits.RC4 = 1;
             
             // pop the $
@@ -540,6 +541,7 @@ void main(void) {
         else {
             // Green LED on to show we're ready
             PORTCbits.RC3 = 1;
+            PORTCbits.RC4 = 0;
         }
         
         // Delay for the loop
