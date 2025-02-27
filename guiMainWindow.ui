@@ -232,6 +232,16 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="voltsButton">
+          <property name="toolTip">
+           <string>Check the programming voltage</string>
+          </property>
+          <property name="text">
+           <string>Volts</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <spacer name="horizontalSpacer_4">
           <property name="orientation">
            <enum>Qt::Orientation::Horizontal</enum>

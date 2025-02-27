@@ -242,6 +242,9 @@ void ports_init(void)
     // Port D is data D0-A7, either input or output.
     TRISD = INPUT;
     
+    // disable weak pullups
+    WPUE = 0;
+    
     // Port E are analog inputs
     TRISEbits.TRISE0 = 1; // read 26v
     TRISEbits.TRISE1 = 1; // read 12v
@@ -283,7 +286,7 @@ void __interrupt() isr(void)
 //
 void do_volt()
 {
-    char ads[8];
+    char ads[16];
     
     // Disable any EPROM activity
     PORTCbits.RC0 = 1; // set WE_ false
@@ -299,43 +302,47 @@ void do_volt()
     FVRCON = 0b10001111;
     
     // Enable ADON, set i/p channel, set GO/DONE_ to 0
-    // bit 7 = data format 1=12 bit
+    // bit 7 = ADRMD 0=12 bit
     // bit 6-2 CHS +ve i/p channel RE0 = AN5 = 00101
     // bit 1 = GO/DONE_
     // bit 0 = ADON
     ADCON0 = 0b00010101;
     
+    // Wait 30uS for FVR to stabilise after enable
+    __delay_us(30);
+    
     // bit 7 = ADFM = 1 (2's complement) or 0 (sign/mag)
-    // bit 6-4 = ADCS clock cycle = FOsc/32 010
+    // bit 6-4 = ADCS clock cycle = FOsc/64 110
     // bit 3 = n/a
-    // bit 2 = ADNREF 0 = vref- is vss
-    // bit 1-0 ADPREF = vref+ connected to FVR
-    ADCON1 = 0b10100011;
+    // bit 2 = ADNREF 0  = vref- is vss
+    // bit 1-0 ADPREF 11 = vref+ connected to FVR
+    ADCON1 = 0b11100011;
     
     // bit 7-4 TRIGSEL disabled
     // bit 3-0 CHSN 1111 = selected by ADNREF
     ADCON2 = 0b00001111;
     
     // Set GO/DONE_, wait for conversion
+    __delay_us(10);
     ADCON0bits.GO_nDONE = 1;
     while (! ADCON0bits.DONE) {
-        __delay_us(1);
+        __delay_us(10);
     }
     
-    // if ADFM = 0 we have sign/mag.
-    // ADRESH = bits 11-4 of result
-    // ADRESL bits 7-4 = bits 3-0 of result
-    // ADRESL bit 0 is sign bit
+    // if ADFM = 1 we have 2's complement
+    // ADRESH bits 7-4 are sign
+    // ADRESH bits 3-0 = bits 11-8 of result
+    // ADRESL bits 7-4 = bits 7-0 of result
     
-    // if ADFM = 1 we have two's complement
-    // ADRESH = MSB 4 bits of result
-    // ADRESL = LSB 8 bits of result
-    
-    int16_t result = (ADRESH & 0x0f) << 8;
+    int16_t result = (ADRESH << 8);
             result |= ADRESL;
-    
     sprintf(ads, "%d", result);
-    uart_puts(ads);     
+    //sprintf(ads, "%x %x", ADRESH, ADRESL);
+    
+    uart_puts(ads); 
+
+    // Turn off ADC
+    ADCON0bits.ADON=0;    
 }
 
 // ****************************************************************************
