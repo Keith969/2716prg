@@ -293,29 +293,30 @@ void do_volt()
     PORTCbits.RC1 = 1; // set CE_ false
     PORTCbits.RC2 = 1; // set PRG_ false
         
-    // bit 7 = FVREN volt ref enabled
-    // bit 6 = FVRRDY ref ready flag
-    // bit 5 = TSEN temp sense enable
-    // bit 4 = TSRNG temp sense range
-    // bit 3-2 = CDAFVR comp and DAC FVR is 4.096v
+    // Enable FV reference at 4.096v for ADC
+    // bit 7   = FVREN volt ref enabled (1))
+    // bit 6   = FVRRDY ref ready flag
+    // bit 5   = TSEN temp sense disable (0)
+    // bit 4   = TSRNG temp sense range
+    // bit 3-2 = CDAFVR comp and DAC FVR
     // bit 1-0 = ADFVR adc fvr selection = 4.096v
-    FVRCON = 0b10001111;
+    FVRCON = 0b10000011;
     
-    // Enable ADON, set i/p channel, set GO/DONE_ to 0
-    // bit 7 = ADRMD 0=12 bit
-    // bit 6-2 CHS +ve i/p channel RE0 = AN5 = 00101
-    // bit 1 = GO/DONE_
-    // bit 0 = ADON
+    // Enable ADON, set i/p channel, set 12 bit mode
+    // bit 7   = ADRMD 0=12 bit
+    // bit 6-2 = CHS +ve i/p channel RE0 = AN5 = 00101
+    // bit 1   = GO/DONE_
+    // bit 0   = ADON
     ADCON0 = 0b00010101;
     
-    // Wait 30uS for FVR to stabilise after enable
+    // Wait 30uS to stabilise
     __delay_us(30);
     
-    // bit 7 = ADFM = 1 (2's complement) or 0 (sign/mag)
+    // bit 7   = ADFM = 1 (2's complement)
     // bit 6-4 = ADCS clock cycle = FOsc/64 110
-    // bit 3 = n/a
-    // bit 2 = ADNREF 0  = vref- is vss
-    // bit 1-0 ADPREF 11 = vref+ connected to FVR
+    // bit 3   = n/a
+    // bit 2   = ADNREF 0  = vref- is VSS 0v
+    // bit 1-0 = ADPREF 11 = vref+ is FVR 4.096v
     ADCON1 = 0b11100011;
     
     // bit 7-4 TRIGSEL disabled
@@ -323,21 +324,15 @@ void do_volt()
     ADCON2 = 0b00001111;
     
     // Set GO/DONE_, wait for conversion
-    __delay_us(10);
+    __delay_us(2);
     ADCON0bits.GO_nDONE = 1;
     while (! ADCON0bits.DONE) {
-        __delay_us(10);
+        __delay_us(1);
     }
     
-    // if ADFM = 1 we have 2's complement
-    // ADRESH bits 7-4 are sign
-    // ADRESH bits 3-0 = bits 11-8 of result
-    // ADRESL bits 7-4 = bits 7-0 of result
-    
-    int16_t result = (ADRESH << 8);
-            result |= ADRESL;
+    // two's complement result in ADRESH:ADRESL
+    int16_t result = ADRES;
     sprintf(ads, "%d", result);
-    //sprintf(ads, "%x %x", ADRESH, ADRESL);
     
     uart_puts(ads); 
 

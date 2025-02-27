@@ -336,7 +336,7 @@ guiMainWindow::volt()
             if (response.size() > 2) {
                 statusBar()->showMessage("Read volts OK");
                 clearText();
-                appendText(response);
+                //appendText(response);
                 bool ok=false;
                 int32_t val=response.toInt(&ok);
                 if (ok) {
