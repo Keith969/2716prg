@@ -8,3 +8,9 @@ release/
 2708prg.X/dist/*
 2708prg.X/dist/default/production/*
 2708prg.X/nbproject/*
+.vs/
+2708_PRG.sln
+2708prg/
+Backup/
+UpgradeLog.htm
+x64/
