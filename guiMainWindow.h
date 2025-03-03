@@ -17,7 +17,6 @@
 #define CMD_READ "$1"
 #define CMD_WRTE "$2"
 #define CMD_CHEK "$3"
-#define CMD_VOLT "$4"
 #define CMD_INIT "U"
 
 
@@ -37,7 +36,6 @@ public slots:
     void                   openHexFile();
     void                   saveHexFile();
     void                   init();
-    void                   volt();
     void                   quit();
     void                   read();
     void                   check();

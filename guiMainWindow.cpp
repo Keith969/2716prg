@@ -34,7 +34,6 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     QObject::connect(ui.actionSave_HEX_file, SIGNAL(triggered()),                this, SLOT(saveHexFile()));
     QObject::connect(ui.actionQuit,          SIGNAL(triggered()),                this, SLOT(quit()));
     QObject::connect(ui.initButton,          SIGNAL(pressed()),                  this, SLOT(init()));
-    QObject::connect(ui.voltsButton,         SIGNAL(pressed()),                  this, SLOT(volt()));
     QObject::connect(ui.readButton,          SIGNAL(pressed()),                  this, SLOT(read()));
     QObject::connect(ui.checkButton,         SIGNAL(pressed()),                  this, SLOT(check()));
     QObject::connect(ui.writeButton,         SIGNAL(pressed()),                  this, SLOT(write()));
@@ -78,7 +77,6 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     m_initOK = false;
 
     // Until we have init the baud rate, disable the buttons
-    ui.voltsButton->setEnabled(false);
     ui.checkButton->setEnabled(false);
     ui.readButton->setEnabled(false);
     ui.writeButton->setEnabled(false);
@@ -274,7 +272,6 @@ guiMainWindow::init()
             m_initOK = true;
 
             // Enable the buttons
-            ui.voltsButton->setEnabled(true);
             ui.checkButton->setEnabled(true);
             ui.readButton->setEnabled(true);
             ui.writeButton->setEnabled(true);
@@ -296,67 +293,6 @@ guiMainWindow::init()
     setLedColour(Qt::green);
 }
 
-// *****************************************************************************
-// Function     [ volt ]
-// Description  [ Send a volt command to the PIC ]
-// *****************************************************************************
-void
-guiMainWindow::volt()
-{
-    if (! m_initOK) {
-        QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
-        return;
-    }
-
-    int32_t timeout = ui.timeOut->value() * 1000;
-    statusBar()->showMessage(QString("Status: Connected to port %1.")
-                                 .arg(m_serialPort->portName()));
-    clearText();
-    setLedColour(Qt::red);
-    qApp->processEvents();
-
-    // Send the cmd.
-    m_serialPort->write(CMD_VOLT);
-
-    // Did we get a response?
-    if (m_serialPort->waitForBytesWritten(timeout)) {
-
-        // read response from the PIC
-        if (m_serialPort->waitForReadyRead(timeout)) {
-
-            // Try and read some data
-            QByteArray responseData = m_serialPort->readAll();
-
-            // ... and wait for rest of the data.
-            while (m_serialPort->waitForReadyRead(1000)) {
-                responseData += m_serialPort->readAll();
-            }
-
-            const QString response = QString::fromUtf8(responseData);
-            if (response.size() > 2) {
-                statusBar()->showMessage("Read volts OK");
-                clearText();
-                //appendText(response);
-                bool ok=false;
-                int32_t val=response.toInt(&ok);
-                if (ok) {
-                    // The resistor chain is 22k + 3.9k
-                    double v = ((double) val/1000.0) * ((22+3.9)/3.9);
-                    appendText(QString("VPP = %1v").arg(v,0,'f',2));
-                }
-            }
-            else {
-                serialError(QString("Failed to read reponse (%1 bytes read)").arg(response.size()));
-            }
-        } else {
-            serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
-        }
-    } else {
-        serialTimeout(QString("Wait cmd write timeout %1").arg(QTime::currentTime().toString()));
-    }
-
-    setLedColour(Qt::green);
-}
 
 // *****************************************************************************
 // Function     [ read ]

@@ -26,7 +26,6 @@
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
-#define CMD_VOLT '4'               // Read supply voltages
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -202,15 +201,15 @@ void ports_init(void)
     ANSELB = 0;           // Port B all digital
     ANSELC = 0;           // Port C all digital
     ANSELD = 0;           // Port D all digital
-    ANSELE = 1;           // Port E analog inputs RE0,1,2
+    ANSELE = 0;           // Port E all digital
     
     // Port A for high address
     // TRISA0 = 0 - A8
     // Also uart control. 
     TRISAbits.TRISA0 = 0; // A8 is output
     TRISAbits.TRISA1 = 0; // A9 is output
-    TRISAbits.TRISA2 = 0; // 
-    TRISAbits.TRISA3 = 1; // 
+    TRISAbits.TRISA2 = 0; // A10
+    TRISAbits.TRISA3 = 1; // A11
     TRISAbits.TRISA4 = 0; // CTS is an active low output
     TRISAbits.TRISA5 = 1; // RTS is an active low input
     // bits 6,7 = XTAL
@@ -242,13 +241,8 @@ void ports_init(void)
     // Port D is data D0-A7, either input or output.
     TRISD = INPUT;
     
-    // disable weak pullups
-    WPUE = 0;
-    
-    // Port E are analog inputs
-    TRISEbits.TRISE0 = 1; // read 26v
-    TRISEbits.TRISE1 = 1; // read 12v
-    TRISEbits.TRISE2 = 1; // read -5v
+    // Port E not used
+    TRISE = 0;
 }
 
 // ****************************************************************************
@@ -279,65 +273,6 @@ void __interrupt() isr(void)
         // Enable interrupts
         PIE1bits.RCIE=1;
         INTCONbits.GIE = 1;
-}
-
-// ****************************************************************************
-// read supply voltages
-//
-void do_volt()
-{
-    char ads[16];
-    
-    // Disable any EPROM activity
-    LATCbits.LATC0 = 1; // set WE_ false
-    LATCbits.LATC1 = 1; // set CE_ false
-    LATCbits.LATC2 = 1; // set PRG_ false
-        
-    // Enable FV reference at 4.096v for ADC
-    // bit 7   = FVREN volt ref enabled (1))
-    // bit 6   = FVRRDY ref ready flag
-    // bit 5   = TSEN temp sense disable (0)
-    // bit 4   = TSRNG temp sense range
-    // bit 3-2 = CDAFVR comp and DAC FVR
-    // bit 1-0 = ADFVR adc fvr selection = 4.096v
-    FVRCON = 0b10000011;
-    
-    // Enable ADON, set i/p channel, set 12 bit mode
-    // bit 7   = ADRMD 0=12 bit
-    // bit 6-2 = CHS +ve i/p channel RE0 = AN5 = 00101
-    // bit 1   = GO/DONE_
-    // bit 0   = ADON
-    ADCON0 = 0b00010101;
-    
-    // Wait 30uS to stabilise
-    __delay_us(30);
-    
-    // bit 7   = ADFM = 1 (2's complement)
-    // bit 6-4 = ADCS clock cycle = FOsc/64 110
-    // bit 3   = n/a
-    // bit 2   = ADNREF 0  = vref- is VSS 0v
-    // bit 1-0 = ADPREF 11 = vref+ is FVR 4.096v
-    ADCON1 = 0b11100011;
-    
-    // bit 7-4 TRIGSEL disabled
-    // bit 3-0 CHSN 1111 = selected by ADNREF
-    ADCON2 = 0b00001111;
-    
-    // Set GO/DONE_, wait for conversion
-    __delay_us(2);
-    ADCON0bits.GO_nDONE = 1;
-    while (! ADCON0bits.DONE) {
-        __delay_us(1);
-    }
-    
-    // two's complement result in ADRESH:ADRESL
-    int16_t result = ADRES;
-    sprintf(ads, "%d", result);
-    
-    uart_puts(ads); 
-
-    // Turn off ADC
-    ADCON0bits.ADON=0;    
 }
 
 // ****************************************************************************
@@ -594,9 +529,6 @@ void main(void) {
             }
             else if (cmd == CMD_CHEK) {
                 do_blank();
-            }
-            else if (cmd == CMD_VOLT) {
-                do_volt();
             }
             else if (cmd == CMD_INIT) {
                 uart_puts("Already init");
