@@ -266,9 +266,14 @@ guiMainWindow::init()
             clearText();
             bool ok=true;
             int32_t val=20.0e6 / (4 * (response.toInt(&ok) + 1));
-            QString ss = QString("Initialised serial link to %1 baud").arg(val);
-            appendText(ss);
-            setLedColour(Qt::green);
+            if (std::abs(100*(val - baudRate)/baudRate) < 5) {
+                QString ss = QString("Initialised serial link to %1 baud").arg(baudRate);
+                appendText(ss);
+            }
+            else {
+                QString ss = QString("Error, serial link not %1 baud").arg(baudRate);
+                appendText(ss);
+            }
             m_initOK = true;
 
             // Enable the buttons
@@ -282,6 +287,39 @@ guiMainWindow::init()
             }
             else {
                 serialError(QString("Failed to initialise serial link to % baud").arg(baudRate));
+            }
+        } else {
+            serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));
+        }
+    } else {
+        serialTimeout(QString("Wait write request timeout %1").arg(QTime::currentTime().toString()));
+    }
+
+
+
+    // Now send a device identity cmd
+    m_serialPort->write(CMD_IDEN);
+
+    // Did we get a response?
+    if (m_serialPort->waitForBytesWritten(timeout)) {
+
+        // read response from the PIC
+        if (m_serialPort->waitForReadyRead(timeout)) {
+
+            // Try and read some data
+            QByteArray responseData = m_serialPort->readAll();
+
+            // ... and wait for rest of the data.
+            while (m_serialPort->waitForReadyRead(10)) {
+                responseData += m_serialPort->readAll();
+            }
+
+            const QString response = QString::fromUtf8(responseData);
+            if (devType == response) {
+                appendText(QString("Device type %1").arg(response));
+            }
+            else {
+                appendText(QString("Incorrect device type %1").arg(response));
             }
         } else {
             serialTimeout(QString("Wait read response timeout %1").arg(QTime::currentTime().toString()));

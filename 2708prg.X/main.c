@@ -26,6 +26,7 @@
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
+#define CMD_IDEN '4'               // Get the ID of the device ("2708")
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -532,6 +533,9 @@ void main(void) {
             }
             else if (cmd == CMD_INIT) {
                 uart_puts("Already init");
+            }
+            else if (cmd == CMD_IDEN) {
+                uart_puts("2708");
             }
             
             // Clear the cmd
