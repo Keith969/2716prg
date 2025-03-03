@@ -53,7 +53,7 @@ static bool    queue_empty = false;// wait if queue empty
 //
 void setCTS(bool b)
 {
-    PORTAbits.RA2 = b;
+    PORTAbits.RA4 = b;
 }
 
 // ****************************************************************************
@@ -209,12 +209,12 @@ void ports_init(void)
     // Also uart control. 
     TRISAbits.TRISA0 = 0; // A8 is output
     TRISAbits.TRISA1 = 0; // A9 is output
-    TRISAbits.TRISA2 = 0; // CTS is an active low output
-    TRISAbits.TRISA3 = 1; // RTS is an active low input
-    TRISAbits.TRISA4 = 0; // unused
-    TRISAbits.TRISA5 = 0; // unused
+    TRISAbits.TRISA2 = 0; // 
+    TRISAbits.TRISA3 = 1; // 
+    TRISAbits.TRISA4 = 0; // CTS is an active low output
+    TRISAbits.TRISA5 = 1; // RTS is an active low input
     // bits 6,7 = XTAL
-    PORTAbits.RA2 = 0;    // assert CTS
+    PORTAbits.RA4 = 0;    // assert CTS
 
     // Port B for EPROM address A0-A7
     TRISB = OUTPUT;
@@ -289,9 +289,9 @@ void do_volt()
     char ads[16];
     
     // Disable any EPROM activity
-    PORTCbits.RC0 = 1; // set WE_ false
-    PORTCbits.RC1 = 1; // set CE_ false
-    PORTCbits.RC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 1; // set WE_ false
+    LATCbits.LATC1 = 1; // set CE_ false
+    LATCbits.LATC2 = 1; // set PRG_ false
         
     // Enable FV reference at 4.096v for ADC
     // bit 7   = FVREN volt ref enabled (1))
@@ -365,8 +365,8 @@ uint8_t read_port()
     // wait
     __delay_us(1);
     
-    PORTCbits.RC0 = 1; // Set WE_ false
-    PORTCbits.RC1 = 0; // Set CE_ true
+    LATCbits.LATC0 = 1; // Set WE_ false
+    LATCbits.LATC1 = 0; // Set CE_ true
     __delay_us(1);
 
     // Read port D
@@ -401,9 +401,9 @@ void do_blank()
     char *s;
        
     // Set control bits for reading
-    PORTCbits.RC0 = 1; // set WE_ false (read)
-    PORTCbits.RC1 = 0; // set CE_ true 
-    PORTCbits.RC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 1; // set WE_ false (read)
+    LATCbits.LATC1 = 0; // set CE_ true 
+    LATCbits.LATC2 = 1; // set PRG_ false
         
     for (addr = 0; addr < 1048; ++addr) {
         if (cmd_active == false) {
@@ -430,7 +430,7 @@ void do_blank()
     }
     
     // Set CE_ false
-    PORTCbits.RC1 = 1;
+    LATCbits.LATC1 = 1;
     
     if (ok) {
         s = "OK";
@@ -449,9 +449,9 @@ void do_read()
     uint8_t col=0;
     
     // Set control bits for reading
-    PORTCbits.RC0 = 1; // set WE_ false (read)
-    PORTCbits.RC1 = 0; // set CE_ true
-    PORTCbits.RC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 1; // set WE_ false (read)
+    LATCbits.LATC1 = 0; // set CE_ true
+    LATCbits.LATC2 = 1; // set PRG_ false
         
     for (addr = 0; addr < 1024; ++addr) {
         if (cmd_active == false) {
@@ -484,7 +484,7 @@ void do_read()
     }
     
     // set CE_ false
-    PORTCbits.RC1 = 1; 
+    LATCbits.LATC1 = 1; 
 }
 
 // ****************************************************************************
@@ -498,11 +498,11 @@ void write_port(uint8_t data)
 
     // Activate PGM pulse for 1mS
     __delay_us(10);
-    PORTCbits.RC2 = 0; 
+    LATCbits.LATC2 = 0; 
     __delay_ms(1);
 
     // Deactivate PGM pulse
-    PORTCbits.RC2 = 1;
+    LATCbits.LATC2 = 1;
     __delay_us(1);
 }
 
@@ -519,10 +519,10 @@ void do_write()
     // Set port D to output
     TRISD = OUTPUT;
       
-    // Set control bits for writing
-    PORTCbits.RC0 = 0; // set WE_ true
-    PORTCbits.RC1 = 0; // set CE_ true (write)
-    PORTCbits.RC2 = 1; // set PRG_ false
+    // Set control bits for writing 
+    LATCbits.LATC0 = 0; // set WE_ true
+    LATCbits.LATC1 = 0; // set CE_ true (write)
+    LATCbits.LATC2 = 1; // set PRG_ false
     
     for (addr = 0; addr < 1024; addr++) {
         if (cmd_active == false) {
@@ -540,14 +540,14 @@ void do_write()
 
         // Latch the 16 bit address.
         setup_address(addr);
-
+    
         // Write the byte to port D
         write_port(data);
     }
     
-    PORTCbits.RC0 = 1; // set CE_ false
-    PORTCbits.RC1 = 1; // set WE_ false (read)
-    PORTCbits.RC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 0; // set CE_ false
+    LATCbits.LATC1 = 0; // set WE_ false (read)
+    LATCbits.LATC2 = 1; // set PRG_ false
     
     // Set port D to input
     TRISD = INPUT;
