@@ -222,7 +222,7 @@ void ports_init(void)
     // Port C is control and uart bits
     // (uart uses bits 6,7). Bits 4/5 spare.
     TRISCbits.TRISC0 = 0; // bit 0 is CE_ chip enable
-    TRISCbits.TRISC1 = 0; // bit 1 is WE_ write
+    TRISCbits.TRISC1 = 0; // bit 1 is WE_ write enable
     TRISCbits.TRISC2 = 0; // bit 2 is PRG_
     // bit 3,4,5 LEDs
     TRISCbits.TRISC3 = 0; // Green LED
@@ -232,8 +232,8 @@ void ports_init(void)
     TRISCbits.TRISC6 = 1;
     TRISCbits.TRISC7 = 1;
     //
-    PORTCbits.RC0 = 1; // set WE_ false
-    PORTCbits.RC1 = 1; // set CE_ false
+    PORTCbits.RC0 = 1; // set CE_ false
+    PORTCbits.RC1 = 1; // set WE_ false
     PORTCbits.RC2 = 1; // set PRG_ false
     PORTCbits.RC3 = 0; // green off
     PORTCbits.RC4 = 0; // orange off
@@ -301,8 +301,9 @@ uint8_t read_port()
     // wait
     __delay_us(1);
     
-    LATCbits.LATC0 = 1; // Set WE_ false
-    LATCbits.LATC1 = 0; // Set CE_ true
+    LATCbits.LATC0 = 0; // Set CE_ true
+    LATCbits.LATC1 = 1; // Set WE_ false
+
     __delay_us(1);
 
     // Read port D
@@ -337,8 +338,8 @@ void do_blank()
     char *s;
        
     // Set control bits for reading
-    LATCbits.LATC0 = 1; // set WE_ false (read)
-    LATCbits.LATC1 = 0; // set CE_ true 
+    LATCbits.LATC0 = 0; // set CE_ true 
+    LATCbits.LATC1 = 1; // set WE_ false (read)
     LATCbits.LATC2 = 1; // set PRG_ false
         
     for (addr = 0; addr < 1048; ++addr) {
@@ -366,7 +367,7 @@ void do_blank()
     }
     
     // Set CE_ false
-    LATCbits.LATC1 = 1;
+    LATCbits.LATC0 = 1;
     
     if (ok) {
         s = "OK";
@@ -385,8 +386,8 @@ void do_read()
     uint8_t col=0;
     
     // Set control bits for reading
-    LATCbits.LATC0 = 1; // set WE_ false (read)
-    LATCbits.LATC1 = 0; // set CE_ true
+    LATCbits.LATC0 = 0; // set CE_ true
+    LATCbits.LATC1 = 1; // set WE_ false (read)
     LATCbits.LATC2 = 1; // set PRG_ false
         
     for (addr = 0; addr < 1024; ++addr) {
@@ -420,7 +421,7 @@ void do_read()
     }
     
     // set CE_ false
-    LATCbits.LATC1 = 1; 
+    LATCbits.LATC0 = 1; 
 }
 
 // ****************************************************************************
@@ -456,8 +457,8 @@ void do_write()
     TRISD = OUTPUT;
       
     // Set control bits for writing 
-    LATCbits.LATC0 = 0; // set WE_ true
-    LATCbits.LATC1 = 0; // set CE_ true (write)
+    LATCbits.LATC0 = 0; // set CE_ true (write)
+    LATCbits.LATC1 = 0; // set WE_ true
     LATCbits.LATC2 = 1; // set PRG_ false
     
     for (addr = 0; addr < 1024; addr++) {
@@ -481,8 +482,8 @@ void do_write()
         write_port(data);
     }
     
-    LATCbits.LATC0 = 0; // set CE_ false
-    LATCbits.LATC1 = 0; // set WE_ false (read)
+    LATCbits.LATC0 = 0; // set WE_ false (read)
+    LATCbits.LATC1 = 0; // set CE_ false
     LATCbits.LATC2 = 1; // set PRG_ false
     
     // Set port D to input
