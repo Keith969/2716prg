@@ -16,11 +16,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-//
-// static variables
-//
-static bool    uart_ready = false;
-
 // ****************************************************************************
 // Function         [ uart_init ]
 // Description      [ ]
