@@ -335,17 +335,15 @@ void do_blank()
     uint16_t addr;
     char ads[32];
     bool ok = true;
-    char *s;
        
     // Set control bits for reading
     LATCbits.LATC0 = 0; // set CE_ true 
     LATCbits.LATC1 = 1; // set WE_ false (read)
     LATCbits.LATC2 = 1; // set PRG_ false
         
-    for (addr = 0; addr < 1048; ++addr) {
+    for (addr = 0; addr < 1024; ++addr) {
         if (cmd_active == false) {
-            s = "Check aborted\n";
-            uart_puts(s);
+            uart_puts("Check aborted\n");
             return;
         }
 
@@ -392,8 +390,7 @@ void do_read()
         
     for (addr = 0; addr < 1024; ++addr) {
         if (cmd_active == false) {
-            char *s = "Read aborted\n";
-            uart_puts(s);
+            uart_puts("Read abortted\n");
             return;
         }
         
@@ -450,7 +447,6 @@ void write_port(uint8_t data)
 void do_write()
 {
     uint16_t addr;
-    char ads[2];   
     char c;
     
     // Set port D to output
@@ -463,8 +459,7 @@ void do_write()
     
     for (addr = 0; addr < 1024; addr++) {
         if (cmd_active == false) {
-            char *s = "Write aborted\n";
-            uart_puts(s);
+            uart_puts("Write aborted\n");
             return;
         }
 
@@ -489,8 +484,7 @@ void do_write()
     // Set port D to input
     TRISD = INPUT;
     
-    sprintf(ads, "OK");
-    uart_puts(ads);
+    uart_puts("OK");
 }
 
 // ****************************************************************************
@@ -511,11 +505,12 @@ void main(void) {
     INTCONbits.GIE = 1;
         
     // Loop while waiting for commands
+	// We flash a green LED so we know we are listening...
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
-            PORTCbits.RC3 = 0;
-            PORTCbits.RC4 = 1;
+            PORTCbits.RC3 = 0; // green off
+            PORTCbits.RC4 = 1; // orange on
             
             // pop the $
             pop();
@@ -544,8 +539,8 @@ void main(void) {
         } 
         else {
             // Green LED on to show we're ready
-            PORTCbits.RC3 = 1;
-            PORTCbits.RC4 = 0;
+            PORTCbits.RC3 = 1; // green on
+            PORTCbits.RC4 = 0; // orange off
         }
         
         // Delay for the loop
