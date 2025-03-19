@@ -3,7 +3,7 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>2708prg</name>
+            <name>2716prg</name>
             <creation-uuid>ee8cc9d9-fd50-4ffd-90f2-24fab455a5d4</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>

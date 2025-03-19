@@ -26,7 +26,7 @@
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
-#define CMD_IDEN '4'               // Get the ID of the device ("2708")
+#define CMD_IDEN '4'               // Get the ID of the device ("2716")
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -204,13 +204,12 @@ void ports_init(void)
     ANSELD = 0;           // Port D all digital
     ANSELE = 0;           // Port E all digital
     
-    // Port A for high address
-    // TRISA0 = 0 - A8
+    // Port A for high address bits
     // Also uart control. 
     TRISAbits.TRISA0 = 0; // A8 is output
     TRISAbits.TRISA1 = 0; // A9 is output
-    TRISAbits.TRISA2 = 0; // A10
-    TRISAbits.TRISA3 = 1; // A11
+    TRISAbits.TRISA2 = 0; // A10 is output
+    TRISAbits.TRISA3 = 1; // 
     TRISAbits.TRISA4 = 0; // CTS is an active low output
     TRISAbits.TRISA5 = 1; // RTS is an active low input
     // bits 6,7 = XTAL
@@ -221,9 +220,9 @@ void ports_init(void)
     
     // Port C is control and uart bits
     // (uart uses bits 6,7). Bits 4/5 spare.
-    TRISCbits.TRISC0 = 0; // bit 0 is CE_ chip enable
-    TRISCbits.TRISC1 = 0; // bit 1 is WE_ write enable
-    TRISCbits.TRISC2 = 0; // bit 2 is PRG_
+    TRISCbits.TRISC0 = 0; // bit 0 is CS_
+    TRISCbits.TRISC1 = 0; // 
+    TRISCbits.TRISC2 = 0; // bit 2 is PGM
     // bit 3,4,5 LEDs
     TRISCbits.TRISC3 = 0; // Green LED
     TRISCbits.TRISC4 = 0; // Orange LED
@@ -281,10 +280,10 @@ void __interrupt() isr(void)
 //
 void setup_address(uint16_t addr)
 {                
-    // Set the address lines. B0-7 is A0-7, A0-1 is A8-9
+    // Set the address lines. B0-7 is A0-7, A0-2 is A8-10
     uint8_t hi = addr >> 8;
     LATB       = addr & 0x00ff;
-    LATA       = hi   & 0x03;
+    LATA       = hi   & 0x07;
         
     // wait, Tcss
     __delay_us(10);
@@ -301,8 +300,8 @@ uint8_t read_port()
     // wait
     __delay_us(1);
     
-    LATCbits.LATC0 = 0; // Set CE_ true
-    LATCbits.LATC1 = 1; // Set WE_ false
+    LATCbits.LATC0 = 0; // Set CS_ true
+    LATCbits.LATC2 = 0; // Set PGM false
 
     __delay_us(1);
 
@@ -337,11 +336,10 @@ void do_blank()
     bool ok = true;
        
     // Set control bits for reading
-    LATCbits.LATC0 = 0; // set CE_ true 
-    LATCbits.LATC1 = 1; // set WE_ false (read)
-    LATCbits.LATC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 0; // set CS_ true 
+    LATCbits.LATC2 = 0; // set PGM false
         
-    for (addr = 0; addr < 1024; ++addr) {
+    for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
             uart_puts("Check aborted\n");
             return;
@@ -364,12 +362,11 @@ void do_blank()
         }
     }
     
-    // Set CE_ false
+    // Set CS_ false
     LATCbits.LATC0 = 1;
     
     if (ok) {
-        s = "OK";
-        uart_puts(s);
+        uart_puts("OK");
     }  
 }
 
@@ -384,13 +381,12 @@ void do_read()
     uint8_t col=0;
     
     // Set control bits for reading
-    LATCbits.LATC0 = 0; // set CE_ true
-    LATCbits.LATC1 = 1; // set WE_ false (read)
-    LATCbits.LATC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 0; // set CS_ true
+    LATCbits.LATC2 = 0; // set PGM false
         
-    for (addr = 0; addr < 1024; ++addr) {
+    for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
-            uart_puts("Read abortted\n");
+            uart_puts("Read aborted\n");
             return;
         }
         
@@ -417,7 +413,7 @@ void do_read()
         }
     }
     
-    // set CE_ false
+    // set CS_ false
     LATCbits.LATC0 = 1; 
 }
 
@@ -432,11 +428,11 @@ void write_port(uint8_t data)
 
     // Activate PGM pulse for 1mS
     __delay_us(10);
-    LATCbits.LATC2 = 0; 
+    LATCbits.LATC2 = 1; 
     __delay_ms(1);
 
     // Deactivate PGM pulse
-    LATCbits.LATC2 = 1;
+    LATCbits.LATC2 = 0;
     __delay_us(1);
 }
 
@@ -453,11 +449,10 @@ void do_write()
     TRISD = OUTPUT;
       
     // Set control bits for writing 
-    LATCbits.LATC0 = 0; // set CE_ true (write)
-    LATCbits.LATC1 = 0; // set WE_ true
-    LATCbits.LATC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 1; // set CS_ false (write)
+    LATCbits.LATC2 = 0; // set PGM false
     
-    for (addr = 0; addr < 1024; addr++) {
+    for (addr = 0; addr < 2048; addr++) {
         if (cmd_active == false) {
             uart_puts("Write aborted\n");
             return;
@@ -477,9 +472,8 @@ void do_write()
         write_port(data);
     }
     
-    LATCbits.LATC0 = 0; // set WE_ false (read)
-    LATCbits.LATC1 = 0; // set CE_ false
-    LATCbits.LATC2 = 1; // set PRG_ false
+    LATCbits.LATC0 = 0; // set CS_ true (read)
+    LATCbits.LATC2 = 0; // set PGM false
     
     // Set port D to input
     TRISD = INPUT;
@@ -531,7 +525,7 @@ void main(void) {
                 uart_puts("Already init");
             }
             else if (cmd == CMD_IDEN) {
-                uart_puts("2708");
+                uart_puts("2716");
             }
             
             // Clear the cmd

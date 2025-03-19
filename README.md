@@ -1,5 +1,5 @@
-# 2708prg
-A programmer for 2708 EPROMs.
+# 2716prg
+A programmer for 2716 EPROMs.
 
 This comes in 3 parts:
 1) The PC (or Mac, Linux) program that reads/writes HEX format files
