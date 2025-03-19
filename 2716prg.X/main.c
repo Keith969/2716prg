@@ -426,10 +426,10 @@ void write_port(uint8_t data)
      __delay_us(1);
     LATD = data;
 
-    // Activate PGM pulse for 1mS
+    // Activate PGM pulse for 50mS
     __delay_us(10);
     LATCbits.LATC2 = 1; 
-    __delay_ms(1);
+    __delay_ms(50);
 
     // Deactivate PGM pulse
     LATCbits.LATC2 = 0;
