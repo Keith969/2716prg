@@ -221,7 +221,7 @@ void ports_init(void)
     // Port C is control and uart bits
     // (uart uses bits 6,7). Bits 4/5 spare.
     TRISCbits.TRISC0 = 0; // bit 0 is CS_
-    TRISCbits.TRISC1 = 0; // 
+    TRISCbits.TRISC1 = 0; // bit 1 is WE_
     TRISCbits.TRISC2 = 0; // bit 2 is PGM
     // bit 3,4,5 LEDs
     TRISCbits.TRISC3 = 0; // Green LED
@@ -233,7 +233,7 @@ void ports_init(void)
     //
     PORTCbits.RC0 = 1; // set CE_ false
     PORTCbits.RC1 = 1; // set WE_ false
-    PORTCbits.RC2 = 1; // set PRG_ false
+    PORTCbits.RC2 = 0; // set PGM false
     PORTCbits.RC3 = 0; // green off
     PORTCbits.RC4 = 0; // orange off
     PORTCbits.RC5 = 0; // red off
@@ -450,6 +450,7 @@ void do_write()
       
     // Set control bits for writing 
     LATCbits.LATC0 = 1; // set CS_ false (write)
+    LATCbits.LATC1 = 0; // set WE true (+25v vpp)
     LATCbits.LATC2 = 0; // set PGM false
     
     for (addr = 0; addr < 2048; addr++) {
@@ -473,6 +474,7 @@ void do_write()
     }
     
     LATCbits.LATC0 = 0; // set CS_ true (read)
+    LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
     LATCbits.LATC2 = 0; // set PGM false
     
     // Set port D to input

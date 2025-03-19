@@ -8,6 +8,7 @@ release/
 2716prg.X/dist/*
 2716prg.X/dist/default/production/*
 2716prg.X/nbproject/*
+2716prg.X/default/*
 .vs/
 2716_PRG.sln
 2716prg/
