@@ -43,9 +43,9 @@ static char    queue[QUEUESIZE];   // The receiver queue
 static int16_t head = 0;           // head of the queue
 static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
-static int16_t bytes_pushed = 0;   // pushed into queue
-static int16_t bytes_popped = 0;   // popped from queue
 static bool    queue_empty = false;// wait if queue empty
+static bool    is2716 = true;      // true if sw set to 2716
+static int16_t bytes = 0;          // size of program data
 
 // ****************************************************************************
 // setCTS()
@@ -131,7 +131,6 @@ void push(char c)
     else {
         tail = addone(tail);
         queue[tail] = c;
-        bytes_pushed++;
     }  
 }
 
@@ -162,7 +161,6 @@ char pop()
     // Get the head of the queue.
     char c = queue[head];
     head = addone(head);
-    bytes_popped++;
     
     // Enable interrupts
     INTCONbits.GIE = 1;
@@ -220,9 +218,9 @@ void ports_init(void)
     
     // Port C is control and uart bits
     // (uart uses bits 6,7). Bits 4/5 spare.
-    TRISCbits.TRISC0 = 0; // bit 0 is CS_
+    TRISCbits.TRISC0 = 0; // bit 0 is CS_ for 2716, PGM_ for 2732
     TRISCbits.TRISC1 = 0; // bit 1 is WE_
-    TRISCbits.TRISC2 = 0; // bit 2 is PGM
+    TRISCbits.TRISC2 = 0; // bit 2 is PGM for 2716, unused for 2732
     // bit 3,4,5 LEDs
     TRISCbits.TRISC3 = 0; // Green LED
     TRISCbits.TRISC4 = 0; // Orange LED
@@ -237,12 +235,18 @@ void ports_init(void)
     PORTCbits.RC3 = 0; // green off
     PORTCbits.RC4 = 0; // orange off
     PORTCbits.RC5 = 0; // red off
-  
+    
     // Port D is data D0-A7, either input or output.
     TRISD = INPUT;
     
-    // Port E not used
-    TRISE = 0;
+    // Port E; RE0 used for determining EPROM type
+    TRISE = 0b111;
+    is2716 = PORTEbits.RE0;
+    if (is2716) {
+        bytes = 2048;
+    } else {
+        bytes = 4096;
+    }
 }
 
 // ****************************************************************************
@@ -280,10 +284,10 @@ void __interrupt() isr(void)
 //
 void setup_address(uint16_t addr)
 {                
-    // Set the address lines. B0-7 is A0-7, A0-2 is A8-10
+    // Set the address lines. B0-7 is A0-7, A0-2 is A8-11
     uint8_t hi = addr >> 8;
     LATB       = addr & 0x00ff;
-    LATA       = hi   & 0x07;
+    LATA       = hi   & 0x0f;
         
     // wait, Tcss
     __delay_us(10);
@@ -296,12 +300,12 @@ uint8_t read_port()
 {
     // Set port D to input to read from DUT
     TRISD = INPUT;
-    
-    // wait
     __delay_us(1);
     
-    LATCbits.LATC0 = 0; // Set CS_ true
-    LATCbits.LATC2 = 0; // Set PGM false
+    if (is2716) {
+        LATCbits.LATC0 = 0; // Set CS_ true
+        LATCbits.LATC2 = 0; // Set PGM false
+    }
 
     __delay_us(1);
 
@@ -336,10 +340,14 @@ void do_blank()
     bool ok = true;
        
     // Set control bits for reading
-    LATCbits.LATC0 = 0; // set CS_ true 
-    LATCbits.LATC2 = 0; // set PGM false
+    if (is2716) {
+        LATCbits.LATC0 = 0; // set CS_ true 
+        LATCbits.LATC2 = 0; // set PGM false
+    } else {
+        LATCbits.LATC0 = 1; // set PGM_ false
+    }
         
-    for (addr = 0; addr < 2048; ++addr) {
+    for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
             uart_puts("Check aborted\n");
             return;
@@ -363,7 +371,9 @@ void do_blank()
     }
     
     // Set CS_ false
-    LATCbits.LATC0 = 1;
+    if (is2716) {
+        LATCbits.LATC0 = 1;
+    }
     
     if (ok) {
         uart_puts("OK");
@@ -381,10 +391,14 @@ void do_read()
     uint8_t col=0;
     
     // Set control bits for reading
-    LATCbits.LATC0 = 0; // set CS_ true
-    LATCbits.LATC2 = 0; // set PGM false
+    if (is2716) {
+        LATCbits.LATC0 = 0; // set CS_ true
+        LATCbits.LATC2 = 0; // set PGM false
+    } else {
+        LATCbits.LATC0 = 1; // set PGM_ false
+    }
         
-    for (addr = 0; addr < 2048; ++addr) {
+    for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
             uart_puts("Read aborted\n");
             return;
@@ -414,7 +428,9 @@ void do_read()
     }
     
     // set CS_ false
-    LATCbits.LATC0 = 1; 
+    if (is2716) {
+        LATCbits.LATC0 = 1; 
+    }
 }
 
 // ****************************************************************************
@@ -426,14 +442,25 @@ void write_port(uint8_t data)
      __delay_us(1);
     LATD = data;
 
-    // Activate PGM pulse for 50mS
-    __delay_us(10);
-    LATCbits.LATC2 = 1; 
-    __delay_ms(50);
+    if (is2716) {
+        // Activate PGM pulse for 50mS
+        __delay_us(10);
+        LATCbits.LATC2 = 1; 
+        __delay_ms(50);
 
-    // Deactivate PGM pulse
-    LATCbits.LATC2 = 0;
-    __delay_us(1);
+        // Deactivate PGM pulse
+        LATCbits.LATC2 = 0;
+        __delay_us(1);
+    } else {
+        // Activate PGM_ pulse for 50mS
+        __delay_us(10);
+        LATCbits.LATC0 = 0; 
+        __delay_ms(50);
+
+        // Deactivate PGM_ pulse
+        LATCbits.LATC0 = 1;
+        __delay_us(1);   
+    }
 }
 
 // ****************************************************************************
@@ -449,11 +476,16 @@ void do_write()
     TRISD = OUTPUT;
       
     // Set control bits for writing 
-    LATCbits.LATC0 = 1; // set CS_ false (write)
-    LATCbits.LATC1 = 0; // set WE true (+25v vpp)
-    LATCbits.LATC2 = 0; // set PGM false
+    if (is2716) {
+        LATCbits.LATC0 = 1; // set CS_ false (write)
+        LATCbits.LATC1 = 0; // set WE true (+25v vpp)
+        LATCbits.LATC2 = 0; // set PGM false
+    } else {
+        LATCbits.LATC0 = 1; // set PGM_ false
+        LATCbits.LATC1 = 0; // set WE true (+25v vpp) 
+    }
     
-    for (addr = 0; addr < 2048; addr++) {
+    for (addr = 0; addr < bytes; addr++) {
         if (cmd_active == false) {
             uart_puts("Write aborted\n");
             return;
@@ -472,10 +504,15 @@ void do_write()
         // Write the byte to port D
         write_port(data);
     }
-    
-    LATCbits.LATC0 = 0; // set CS_ true (read)
-    LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
-    LATCbits.LATC2 = 0; // set PGM false
+     
+    if (is2716) {
+        LATCbits.LATC0 = 0; // set CS_ false (write)
+        LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
+        LATCbits.LATC2 = 0; // set PGM false
+    } else {
+        LATCbits.LATC0 = 1; // set PGM_ false
+        LATCbits.LATC1 = 1; // set WE false (+5v vpp) 
+    }
     
     // Set port D to input
     TRISD = INPUT;
@@ -527,7 +564,11 @@ void main(void) {
                 uart_puts("Already init");
             }
             else if (cmd == CMD_IDEN) {
-                uart_puts("2716");
+                if (is2716) {
+                    uart_puts("2716");
+                } else {
+                    uart_puts("2732");
+                }
             }
             
             // Clear the cmd
