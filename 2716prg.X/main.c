@@ -207,7 +207,7 @@ void ports_init(void)
     TRISAbits.TRISA0 = 0; // A8 is output
     TRISAbits.TRISA1 = 0; // A9 is output
     TRISAbits.TRISA2 = 0; // A10 is output
-    TRISAbits.TRISA3 = 1; // 
+    TRISAbits.TRISA3 = 0; // A11 is output
     TRISAbits.TRISA4 = 0; // CTS is an active low output
     TRISAbits.TRISA5 = 1; // RTS is an active low input
     // bits 6,7 = XTAL
@@ -286,7 +286,7 @@ void setup_address(uint16_t addr)
 {                
     // Set the address lines. B0-7 is A0-7, A0-2 is A8-11
     uint8_t hi = addr >> 8;
-    LATB       = addr & 0x00ff;
+    LATB       = addr & 0xff;
     LATA       = hi   & 0x0f;
         
     // wait, Tcss
@@ -305,13 +305,15 @@ uint8_t read_port()
     if (is2716) {
         LATCbits.LATC0 = 0; // Set CS_ true
         LATCbits.LATC2 = 0; // Set PGM false
+    } else {
+        LATCbits.LATC0 = 0; // Set PD false
     }
 
     __delay_us(1);
 
     // Read port D
     uint8_t data = PORTD;
-
+    
     return data;
 }
 
@@ -344,7 +346,7 @@ void do_blank()
         LATCbits.LATC0 = 0; // set CS_ true 
         LATCbits.LATC2 = 0; // set PGM false
     } else {
-        LATCbits.LATC0 = 1; // set PGM_ false
+        LATCbits.LATC0 = 0; // set PD false
     }
         
     for (addr = 0; addr < bytes; ++addr) {
@@ -370,10 +372,8 @@ void do_blank()
         }
     }
     
-    // Set CS_ false
-    if (is2716) {
-        LATCbits.LATC0 = 1;
-    }
+    // Set CS_ false / PD true
+    LATCbits.LATC0 = 1;
     
     if (ok) {
         uart_puts("OK");
@@ -395,7 +395,7 @@ void do_read()
         LATCbits.LATC0 = 0; // set CS_ true
         LATCbits.LATC2 = 0; // set PGM false
     } else {
-        LATCbits.LATC0 = 1; // set PGM_ false
+        LATCbits.LATC0 = 0; // set PD false
     }
         
     for (addr = 0; addr < bytes; ++addr) {
@@ -427,10 +427,8 @@ void do_read()
         }
     }
     
-    // set CS_ false
-    if (is2716) {
-        LATCbits.LATC0 = 1; 
-    }
+    // set CS_ false  / PD true
+    LATCbits.LATC0 = 1; 
 }
 
 // ****************************************************************************
