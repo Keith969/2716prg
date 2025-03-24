@@ -565,7 +565,7 @@ void main(void) {
                 if (is2716) {
                     uart_puts("2716");
                 } else {
-                    uart_puts("2732");
+                    uart_puts("2532");
                 }
             }
             
