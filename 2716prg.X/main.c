@@ -253,7 +253,7 @@ void ports_init(void)
 void
 do_type()
 {
-    devType = (int8_t) pop();
+    devType = (int8_t) pop() - (int8_t) '0';
             
     if (devType == DEV_2716) {
         bytes = 2048;
@@ -268,6 +268,8 @@ do_type()
         PORTEbits.RE0=0;
         PORTEbits.RE1=1;
     }
+    
+    uart_puts("OK");
 }
 
 // ****************************************************************************
