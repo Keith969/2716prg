@@ -11,7 +11,6 @@
 //
 // ****************************************************************************
 
-#include <pic16f1789.h>
 #include "conbits.h"
 #include "stdint.h"
 #include "string.h"
@@ -22,11 +21,16 @@
 #define INPUT  0xFF
 #define OUTPUT 0x00
 
+#define DEV_2716 0
+#define DEV_2732 1
+#define DEV_2532 2
+
 // cmds
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 #define CMD_IDEN '4'               // Get the ID of the device ("2716")
+#define CMD_TYPE '5'               // Set the device type
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -44,7 +48,7 @@ static int16_t head = 0;           // head of the queue
 static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
 static bool    queue_empty = false;// wait if queue empty
-static bool    is2716 = true;      // true if sw set to 2716
+static int8_t  devType = 0;        // 0 = 2716, 1 = 2732, 2 = 2532
 static int16_t bytes = 0;          // size of program data
 
 // ****************************************************************************
@@ -218,9 +222,9 @@ void ports_init(void)
     
     // Port C is control and uart bits
     // (uart uses bits 6,7). Bits 4/5 spare.
-    TRISCbits.TRISC0 = 0; // bit 0 is CS_ for 2716, PGM_ for 2732
-    TRISCbits.TRISC1 = 0; // bit 1 is WE_
-    TRISCbits.TRISC2 = 0; // bit 2 is PGM for 2716, unused for 2732
+    TRISCbits.TRISC0 = 0; // RC0 is CS_ for 2716, PGM_ for 2732 and 2532
+    TRISCbits.TRISC1 = 0; // RC1 is WE_ (controls VPP)
+    TRISCbits.TRISC2 = 0; // RC2 is PGM for 2716, unused for 2732
     // bit 3,4,5 LEDs
     TRISCbits.TRISC3 = 0; // Green LED
     TRISCbits.TRISC4 = 0; // Orange LED
@@ -239,13 +243,30 @@ void ports_init(void)
     // Port D is data D0-A7, either input or output.
     TRISD = INPUT;
     
-    // Port E; RE0 used for determining EPROM type
-    TRISE = 0b111;
-    is2716 = PORTEbits.RE0;
-    if (is2716) {
+    // Port E - outputs. RE0 sets RLA (2732), RE1 sets RLB (2532)
+    TRISE = 0;
+}
+
+// ****************************************************************************
+// Set the device type and the RE0/1 bits
+//
+void
+do_type()
+{
+    devType = (int8_t) pop();
+            
+    if (devType == DEV_2716) {
         bytes = 2048;
-    } else {
+        PORTEbits.RE0=0;
+        PORTEbits.RE1=0;
+    } else if (devType == DEV_2732) {
         bytes = 4096;
+        PORTEbits.RE0=1;
+        PORTEbits.RE1=0;
+    } else if (devType == DEV_2532) {
+        bytes = 4096;
+        PORTEbits.RE0=0;
+        PORTEbits.RE1=1;
     }
 }
 
@@ -302,11 +323,16 @@ uint8_t read_port()
     TRISD = INPUT;
     __delay_us(1);
     
-    if (is2716) {
+    if (devType == DEV_2716) {
         LATCbits.LATC0 = 0; // Set CS_ true
-        LATCbits.LATC2 = 0; // Set PGM false
-    } else {
-        LATCbits.LATC0 = 0; // Set PD false
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732) {
+        LATCbits.LATC0 = 0; // Set G_/VPP lo
+        LATCbits.LATC2 = 0; // Set E_ true
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
     }
 
     __delay_us(1);
@@ -342,11 +368,16 @@ void do_blank()
     bool ok = true;
        
     // Set control bits for reading
-    if (is2716) {
-        LATCbits.LATC0 = 0; // set CS_ true 
-        LATCbits.LATC2 = 0; // set PGM false
-    } else {
-        LATCbits.LATC0 = 0; // set PD false
+    if (devType == DEV_2716) {
+        LATCbits.LATC0 = 0; // Set CS_ true
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732) {
+        LATCbits.LATC0 = 0; // Set G_/VPP lo
+        LATCbits.LATC2 = 0; // Set E_ true
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
     }
         
     for (addr = 0; addr < bytes; ++addr) {
@@ -372,8 +403,18 @@ void do_blank()
         }
     }
     
-    // Set CS_ false / PD true
-    LATCbits.LATC0 = 1;
+    // Set outputs disabled
+    if (devType == DEV_2716) {
+        LATCbits.LATC0 = 1; // Set CS_ true
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732) {
+        LATCbits.LATC0 = 1; // Set G_/VPP hi
+        LATCbits.LATC2 = 1; // Set E_ false
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 1; // Set PD/PGM_ hi
+    }
     
     if (ok) {
         uart_puts("OK");
@@ -391,11 +432,16 @@ void do_read()
     uint8_t col=0;
     
     // Set control bits for reading
-    if (is2716) {
-        LATCbits.LATC0 = 0; // set CS_ true
-        LATCbits.LATC2 = 0; // set PGM false
-    } else {
-        LATCbits.LATC0 = 0; // set PD false
+    if (devType == DEV_2716) {
+        LATCbits.LATC0 = 0; // Set CS_ true
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732 ) {
+        LATCbits.LATC0 = 0; // Set G_/VPP lo
+        LATCbits.LATC2 = 0; // Set E_ true
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
     }
         
     for (addr = 0; addr < bytes; ++addr) {
@@ -427,8 +473,18 @@ void do_read()
         }
     }
     
-    // set CS_ false  / PD true
-    LATCbits.LATC0 = 1; 
+    // Set outputs disabled
+    if (devType == DEV_2716) {
+        LATCbits.LATC0 = 1; // Set CS_ true
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732) {
+        LATCbits.LATC0 = 1; // Set G_/VPP hi
+        LATCbits.LATC2 = 1; // Set E_ false
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 1; // Set PD/PGM_ hi
+    }
 }
 
 // ****************************************************************************
@@ -440,8 +496,8 @@ void write_port(uint8_t data)
      __delay_us(2);
     LATD = data;
 
-    if (is2716) {
-        // Activate PGM pulse for 50mS
+    if (devType == DEV_2716) {
+        // Activate PD/PGM pulse for 50mS
         __delay_us(10);
         LATCbits.LATC2 = 1; 
         __delay_ms(50);
@@ -449,7 +505,18 @@ void write_port(uint8_t data)
         // Deactivate PGM pulse
         LATCbits.LATC2 = 0;
         __delay_us(2);
-    } else {
+    } 
+    else if (devType == DEV_2732) {
+        // Activate VPP pulse for 50mS
+        __delay_us(10);
+        LATCbits.LATC1 = 0; 
+        __delay_ms(50);
+
+        // Deactivate PGM_ pulse
+        LATCbits.LATC1 = 1;
+        __delay_us(2);   
+    }
+    else if (devType == DEV_2532) {
         // Activate PGM_ pulse for 50mS
         __delay_us(10);
         LATCbits.LATC0 = 0; 
@@ -457,7 +524,7 @@ void write_port(uint8_t data)
 
         // Deactivate PGM_ pulse
         LATCbits.LATC0 = 1;
-        __delay_us(2);   
+        __delay_us(2);  
     }
 }
 
@@ -474,13 +541,19 @@ void do_write()
     TRISD = OUTPUT;
       
     // Set control bits for writing 
-    if (is2716) {
-        LATCbits.LATC0 = 1; // set CS_ false (write)
+    if (devType == DEV_2716) {
+        LATCbits.LATC0 = 1; // Set CS_ false (write)
         LATCbits.LATC1 = 0; // set WE true (+25v vpp)
-        LATCbits.LATC2 = 0; // set PGM false
-    } else {
-        LATCbits.LATC0 = 1; // set PGM_ false
-        LATCbits.LATC1 = 0; // set WE true (+25v vpp) 
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732 ) {
+        LATCbits.LATC0 = 0; // Set G_/VPP lo
+        LATCbits.LATC1 = 0; // set WE true (+21v vpp)
+        LATCbits.LATC2 = 0; // Set E_ true
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
+        LATCbits.LATC1 = 0; // set WE true (+25v vpp)
     }
     
     for (addr = 0; addr < bytes; addr++) {
@@ -502,14 +575,21 @@ void do_write()
         // Write the byte to port D
         write_port(data);
     }
-     
-    if (is2716) {
-        LATCbits.LATC0 = 0; // set CS_ false (write)
+    
+    // Set outputs disabled
+    if (devType == DEV_2716) {
+        LATCbits.LATC0 = 1; // Set CS_ true
         LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
-        LATCbits.LATC2 = 0; // set PGM false
-    } else {
-        LATCbits.LATC0 = 1; // set PGM_ false
-        LATCbits.LATC1 = 1; // set WE false (+5v vpp) 
+        LATCbits.LATC2 = 0; // Set PD/PGM lo
+    } 
+    else if (devType == DEV_2732) {
+        LATCbits.LATC0 = 1; // Set G_/VPP hi
+        LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
+        LATCbits.LATC2 = 1; // Set E_ false
+    }
+    else if (devType == DEV_2532) {
+        LATCbits.LATC0 = 1; // Set PD/PGM_ hi
+        LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
     }
     
     // Set port D to input
@@ -561,11 +641,21 @@ void main(void) {
             else if (cmd == CMD_INIT) {
                 uart_puts("Already init");
             }
+            else if (cmd == CMD_TYPE) {
+                do_type();
+            }
             else if (cmd == CMD_IDEN) {
-                if (is2716) {
+                if      (devType == 0) {
                     uart_puts("2716");
-                } else {
+                } 
+                else if (devType == 1) {
                     uart_puts("2532");
+                }
+                else if (devType == 2) {
+                    uart_puts("2532");
+                }
+                else {
+                    uart_puts("NONE");
                 }
             }
             
