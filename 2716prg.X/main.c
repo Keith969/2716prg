@@ -437,7 +437,7 @@ void do_read()
 void write_port(uint8_t data)
 {   
     // Write the byte to port D
-     __delay_us(1);
+     __delay_us(2);
     LATD = data;
 
     if (is2716) {
@@ -448,7 +448,7 @@ void write_port(uint8_t data)
 
         // Deactivate PGM pulse
         LATCbits.LATC2 = 0;
-        __delay_us(1);
+        __delay_us(2);
     } else {
         // Activate PGM_ pulse for 50mS
         __delay_us(10);
@@ -457,7 +457,7 @@ void write_port(uint8_t data)
 
         // Deactivate PGM_ pulse
         LATCbits.LATC0 = 1;
-        __delay_us(1);   
+        __delay_us(2);   
     }
 }
 
