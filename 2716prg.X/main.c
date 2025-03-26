@@ -245,6 +245,9 @@ void ports_init(void)
     
     // Port E - outputs. RE0 sets RLA (2732), RE1 sets RLB (2532)
     TRISE = 0;
+    LATEbits.LATE0=0;
+    LATEbits.LATE1=0;
+    LATEbits.LATE2=0;
 }
 
 // ****************************************************************************
@@ -500,7 +503,7 @@ void write_port(uint8_t data)
 
     if (devType == DEV_2716) {
         // Activate PD/PGM pulse for 50mS
-        __delay_us(10);
+        __delay_us(2);
         LATCbits.LATC2 = 1; 
         __delay_ms(50);
 
@@ -509,23 +512,23 @@ void write_port(uint8_t data)
         __delay_us(2);
     } 
     else if (devType == DEV_2732) {
-        // Activate VPP pulse for 50mS
-        __delay_us(10);
-        LATCbits.LATC1 = 0; 
-        __delay_ms(50);
+        // Activate E_ pulse for 10mS
+        __delay_us(2);
+        LATCbits.LATC2 = 0; 
+        __delay_ms(10);
 
-        // Deactivate PGM_ pulse
-        LATCbits.LATC1 = 1;
+        // Deactivate E_ pulse
+        LATCbits.LATC2 = 1;
         __delay_us(2);   
     }
     else if (devType == DEV_2532) {
         // Activate PGM_ pulse for 50mS
-        __delay_us(10);
-        LATCbits.LATC0 = 0; 
+        __delay_us(2);
+        LATCbits.LATC2 = 0; 
         __delay_ms(50);
 
         // Deactivate PGM_ pulse
-        LATCbits.LATC0 = 1;
+        LATCbits.LATC2 = 1;
         __delay_us(2);  
     }
 }
@@ -549,13 +552,14 @@ void do_write()
         LATCbits.LATC2 = 0; // Set PD/PGM lo
     } 
     else if (devType == DEV_2732 ) {
-        LATCbits.LATC0 = 0; // Set G_/VPP lo
+        LATCbits.LATC0 = 1; // G_/VPP hi
         LATCbits.LATC1 = 0; // set WE true (+21v vpp)
-        LATCbits.LATC2 = 0; // Set E_ true
+        LATCbits.LATC2 = 1; // Set E_ false
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
+        LATCbits.LATC0 = 0; // not used
         LATCbits.LATC1 = 0; // set WE true (+25v vpp)
+        LATCbits.LATC2 = 1; // Set PD/PGM_ hi
     }
     
     for (addr = 0; addr < bytes; addr++) {
