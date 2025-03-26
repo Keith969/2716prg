@@ -337,7 +337,7 @@ uint8_t read_port()
         LATCbits.LATC2 = 0; // Set E_ true
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
+        LATCbits.LATC2 = 0; // Set PD/PGM_ lo
     }
 
     __delay_us(1);
@@ -382,7 +382,7 @@ void do_blank()
         LATCbits.LATC2 = 0; // Set E_ true
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
+        LATCbits.LATC2 = 0; // Set PD/PGM_ lo
     }
         
     for (addr = 0; addr < bytes; ++addr) {
@@ -418,7 +418,7 @@ void do_blank()
         LATCbits.LATC2 = 1; // Set E_ false
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 1; // Set PD/PGM_ hi
+        LATCbits.LATC2 = 1; // Set PD/PGM_ hi
     }
     
     if (ok) {
@@ -446,7 +446,7 @@ void do_read()
         LATCbits.LATC2 = 0; // Set E_ true
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 0; // Set PD/PGM_ lo
+        LATCbits.LATC2 = 0; // Set PD/PGM_ lo
     }
         
     for (addr = 0; addr < bytes; ++addr) {
@@ -488,7 +488,7 @@ void do_read()
         LATCbits.LATC2 = 1; // Set E_ false
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 1; // Set PD/PGM_ hi
+        LATCbits.LATC2 = 1; // Set PD/PGM_ hi )
     }
 }
 
@@ -594,8 +594,9 @@ void do_write()
         LATCbits.LATC2 = 1; // Set E_ false
     }
     else if (devType == DEV_2532) {
-        LATCbits.LATC0 = 1; // Set PD/PGM_ hi
+        LATCbits.LATC0 = 0; // not used
         LATCbits.LATC1 = 1; // set WE_ false (+5v vpp)
+        LATCbits.LATC2 = 0; // Set PD/PGM_ lo
     }
     
     // Set port D to input
