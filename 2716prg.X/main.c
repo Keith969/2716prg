@@ -31,6 +31,7 @@
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 #define CMD_IDEN '4'               // Get the ID of the device ("2716")
 #define CMD_TYPE '5'               // Set the device type
+#define CMD_RSET '9'               // Reset the PIC
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -664,6 +665,9 @@ void main(void) {
                 else {
                     uart_puts("NONE");
                 }
+            }
+            else if (cmd == CMD_RSET) {
+                asm("RESET");
             }
             
             // Clear the cmd
