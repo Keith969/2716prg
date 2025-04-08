@@ -551,16 +551,25 @@ void do_write()
         LATCbits.LATC0 = 1; // Set CS_ false (write)
         LATCbits.LATC1 = 0; // set WE true (+25v vpp)
         LATCbits.LATC2 = 0; // Set PD/PGM lo
+        //
+        // Wait for a couple of chars before starting
+        _delay_ms(100);
     } 
     else if (devType == DEV_2732 ) {
         LATCbits.LATC0 = 1; // G_/VPP hi
         LATCbits.LATC1 = 0; // set WE true (+21v vpp)
         LATCbits.LATC2 = 1; // Set E_ false
+        //
+        // Wait for a couple of chars before starting
+        _delay_ms(20);
     }
     else if (devType == DEV_2532) {
         LATCbits.LATC0 = 0; // not used
         LATCbits.LATC1 = 0; // set WE true (+25v vpp)
         LATCbits.LATC2 = 1; // Set PD/PGM_ hi
+        //
+        // Wait for a couple of chars before starting
+        _delay_ms(100);
     }
     
     for (addr = 0; addr < bytes; addr++) {
@@ -624,7 +633,7 @@ void main(void) {
     INTCONbits.GIE = 1;
         
     // Loop while waiting for commands
-	// We flash a green LED so we know we are listening...
+    // We flash a green LED so we know we are listening...
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
