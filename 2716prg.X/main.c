@@ -152,10 +152,10 @@ char pop()
     // Check for empty. Do this before disabling interrupts
     // as need to receive chars still.
     while (empty()) {
-        // Wait for queue to fill, flash read led.
-        PORTCbits.RC5 = 1;
+        // Wait for queue to fill, flash green led.
+        PORTCbits.RC3 = 1;
         __delay_ms(100);
-        PORTCbits.RC5 = 0;
+        PORTCbits.RC3 = 0;
         __delay_ms(100);
     }
   
