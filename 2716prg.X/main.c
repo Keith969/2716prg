@@ -553,7 +553,7 @@ void do_write()
         LATCbits.LATC2 = 0; // Set PD/PGM lo
         //
         // Wait for a couple of chars before starting
-        _delay_ms(100);
+        __delay_ms(100);
     } 
     else if (devType == DEV_2732 ) {
         LATCbits.LATC0 = 1; // G_/VPP hi
@@ -561,7 +561,7 @@ void do_write()
         LATCbits.LATC2 = 1; // Set E_ false
         //
         // Wait for a couple of chars before starting
-        _delay_ms(20);
+        __delay_ms(20);
     }
     else if (devType == DEV_2532) {
         LATCbits.LATC0 = 0; // not used
@@ -569,7 +569,7 @@ void do_write()
         LATCbits.LATC2 = 1; // Set PD/PGM_ hi
         //
         // Wait for a couple of chars before starting
-        _delay_ms(100);
+        __delay_ms(100);
     }
     
     for (addr = 0; addr < bytes; addr++) {
