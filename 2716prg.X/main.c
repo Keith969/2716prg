@@ -260,19 +260,24 @@ do_type()
     devType = (int8_t) pop() - (int8_t) '0';
             
     if (devType == DEV_2716) {
-        bytes = 2048;
-        PORTEbits.RE0=0;
-        PORTEbits.RE1=0;
-    } else if (devType == DEV_2732) {
-        bytes = 4096;
-        PORTEbits.RE0=1;
-        PORTEbits.RE1=0;
-    } else if (devType == DEV_2532) {
-        bytes = 4096;
-        PORTEbits.RE0=0;
-        PORTEbits.RE1=1;
+        bytes = 2048;    // 2716 has 2K EPROM
+        PORTEbits.RE0=0; //
+        PORTEbits.RE1=0; //
+    } else 
+	if (devType == DEV_2732) {
+        bytes = 4096;    // 2732 has 4K EPROM
+        PORTEbits.RE0=1; //
+        PORTEbits.RE1=0; //
+    } else 
+	if (devType == DEV_2532) {
+        bytes = 4096;    // 2532 has 4K EPROM
+        PORTEbits.RE0=0; //
+        PORTEbits.RE1=1; //
     }
-    
+	else {
+    	uart_puts("bad type");
+		return;
+	}
     uart_puts("OK");
 }
 
@@ -672,7 +677,7 @@ void main(void) {
                     uart_puts("2532");
                 }
                 else {
-                    uart_puts("NONE");
+                    uart_puts("ERROR");
                 }
             }
             else if (cmd == CMD_RSET) {
