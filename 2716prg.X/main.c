@@ -667,13 +667,13 @@ void main(void) {
                 do_type();
             }
             else if (cmd == CMD_IDEN) {
-                if      (devType == 0) {
+                if      (devType == DEV_2716) {
                     uart_puts("2716");
                 } 
-                else if (devType == 1) {
-                    uart_puts("2532");
+                else if (devType == DEV_2732) {
+                    uart_puts("2732");
                 }
-                else if (devType == 2) {
+                else if (devType == DEV_2532) {
                     uart_puts("2532");
                 }
                 else {
