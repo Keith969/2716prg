@@ -20,11 +20,11 @@ This comes in 3 parts:
    You also need a copy of Visual C++ 2022.
    Set the env var QTDIR to the location of your Qt installation.
    Windows users - open eprom_prg.sln (the solution file)
-   Mac & Linux users - run qmake on the eprom_prj.pro file to generate a
+   Mac & Linux users - run qmake on the eprom_prg.pro file to generate a
    makefile.
 
 2) With the executable built, you can then connect the PC to the hardware using
-   a FTDI cable.  suitable one can be found on Amazon by searching for 
+   a FTDI cable. A suitable one can be found on Amazon by searching for 
    "DTECH FTDI USB to TTL 3.3V Serial Adapter Debug Cable 0.1 inch Pitch 
    Female Socket Header UART IC FT232RL Chip Windows 10 8 7 Linux Mac (1.8m)"
    The USB end plugs into a USB A port, the 6 pin connector plugs into the
@@ -36,9 +36,9 @@ This comes in 3 parts:
    without the jumper you can apply 5v via the 'ext pwr' header.
 
 4) If you need to program the PIC in situ you can connect the PicKit to the ICSP
-   header on the hardware. The pin marked 1 goes to pin 1 of the PIC.
+   header on the hardware. The pin marked 1 goes to pin 1 of the PicKit.
 
-5) When initially powered, or after a reset, the hardware orange LDE will flash.
+5) When initially powered, or after a reset, the hardware orange LED will flash.
    At this stage you can run the eprom_prg app on your PC and select the device
    you want to program, set the baud rate (the default of 115,000 should be
    used unless you really want to change it), plus the serial interface which
