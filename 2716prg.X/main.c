@@ -562,7 +562,7 @@ void do_write()
         LATCbits.LATC2 = 0; // Set PD/PGM lo
         //
         // Wait for a couple of chars before starting
-        __delay_ms(100);
+        __delay_ms(200);
     } 
     else if (devType == DEV_2732 ) {
         LATCbits.LATC0 = 1; // G_/VPP hi
@@ -570,7 +570,7 @@ void do_write()
         LATCbits.LATC2 = 1; // Set E_ false
         //
         // Wait for a couple of chars before starting
-        __delay_ms(20);
+        __delay_ms(200);
     }
     else if (devType == DEV_2532) {
         LATCbits.LATC0 = 0; // not used
@@ -578,10 +578,17 @@ void do_write()
         LATCbits.LATC2 = 1; // Set PD/PGM_ hi
         //
         // Wait for a couple of chars before starting
-        __delay_ms(100);
+        __delay_ms(200);
     }
     
-    for (addr = 0; addr < bytes; addr++) {
+    // Get the size of the data
+    c = pop();
+    uint8_t hi = charToHexDigit(c);
+    c = pop();
+    uint8_t lo = charToHexDigit(c);
+    uint16_t size = hi*16+lo;
+    
+    for (addr = 0; addr < size; addr++) {
         if (cmd_active == false) {
             uart_puts("Write aborted\n");
             return;
